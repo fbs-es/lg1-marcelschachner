@@ -1,0 +1,33 @@
+{
+    "name": "Java 21 Lehrgang 1",
+    "image": "mcr.microsoft.com/devcontainers/java:1-21",
+    "features": {
+        "ghcr.io/devcontainers/features/java:1": {
+            "version": "21",
+            "installMaven": "true",
+            "installGradle": "true"
+        },
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "22"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "java.compile.nullAnalysis.mode": "automatic",
+                "editor.suggestSelection": "first",
+                "editor.formatOnSave": true
+            },
+            "extensions": [
+                "vscjava.vscode-java-pack",
+                "vscjava.vscode-gradle",
+                "usernamehw.errorlens",
+                "sonarsource.sonarlint-vscode",
+                "streetsidesoftware.code-spell-checker"
+            ]
+        }
+    },
+    "postCreateCommand": "mvn -version && gradle -v",
+    "remoteUser": "vscode"
+}

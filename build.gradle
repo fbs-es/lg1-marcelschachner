@@ -1,0 +1,64 @@
+subprojects {
+    apply plugin: 'java'
+
+    repositories {
+        mavenCentral()
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+        testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
+        testImplementation 'org.assertj:assertj-core:3.24.2'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    test {
+        useJUnitPlatform()
+        reports {
+            junitXml.required = true
+            html.required = true 
+        }
+
+        testLogging {
+            events "passed", "skipped", "failed"
+            showStandardStreams = true
+            exceptionFormat = 'full'
+        }
+
+        afterSuite { desc, result ->
+            if (!desc.parent) { 
+                println "\n" + "="*60
+                println " PROJEKT:    ${project.name}"
+                println " BESCHREIBUNG: ${project.description ?: 'Keine Beschreibung hinterlegt'}"
+                println " STATUS:     ${result.resultType}"
+                println " TESTS:      ${result.testCount} insgesamt, ${result.successfulTestCount} erfolgreich, ${result.failedTestCount} fehlgeschlagen"
+                println "="*60 + "\n"
+            }
+        }
+    }
+}
+
+
+task listTasks {
+    group = "Help"
+    description = "Listet alle verfügbaren Java-Aufgaben und deren Lerninhalte auf."
+    doLast {
+        println "\n" + "Current Java Tasks:".center(60, '-')
+        subprojects.sort { it.name }.each { p ->
+            printf("- %-25s | %s\n", p.name, (p.description ?: "---"))
+        }
+        println "-"*60 + "\n"
+    }
+}
+
+task checkAllTasks {
+    group = "Verification"
+    description = "Führt alle Tests in allen Teilprojekten nacheinander aus."
+    dependsOn subprojects.test
+}

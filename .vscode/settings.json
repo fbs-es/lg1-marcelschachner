@@ -1,0 +1,19 @@
+{
+    "errorLens.excludeBySource": [
+        "cSpell"
+    ],
+    "errorLens.enabledDiagnosticLevels": [
+        "error",
+        "warning"
+    ],
+    "sonarlint.ls.focusOnNewCode": true,
+    "cSpell.words": [
+        "sonarsource",
+        "sonarlint",
+        "vscjava",
+        "gradlew",
+        "junit",
+        "mockito"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
+}

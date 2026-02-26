@@ -1,1 +1,2 @@
 rootProject.name = 'java-lehrgang-1'
+include 'Aufgabe02'

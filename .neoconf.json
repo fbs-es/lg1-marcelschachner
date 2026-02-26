@@ -1,0 +1,5 @@
+{
+  "neotest": {
+    "adapters": ["gradle"]
+  }
+}

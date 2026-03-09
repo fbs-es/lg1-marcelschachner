@@ -8,6 +8,55 @@ public class ZahlenRatenTest {
     ZahlenRaten game = new ZahlenRaten();
 
     @Test
+    void generatedNumberIsInRange() {
+        for (int i = 0; i < 100; i++) {
+            int number = game.generateNumber(1, 100);
+            assertThat(number).isBetween(1, 100);
+        }
+    }
+
+    @Test
+    void generatedNumberRespectsBoundaries() {
+        int min = 10;
+        int max = 50;
+        for (int i = 0; i < 100; i++) {
+            int number = game.generateNumber(min, max);
+            assertThat(number).isBetween(min, max);
+        }
+    }
+
+    @Test
+    void generatedNumberWithDifferentRanges() {
+        assertThat(game.generateNumber(5, 15)).isBetween(5, 15);
+        assertThat(game.generateNumber(-100, 0)).isBetween(-100, 0);
+        assertThat(game.generateNumber(1000, 2000)).isBetween(1000, 2000);
+    }
+
+    @Test
+    void standardInterval() {
+        for (int i = 0; i < 50; i++) {
+            assertThat(game.generateNumber(1, 100)).isBetween(1, 100);
+        }
+    }
+
+    @Test
+    void shiftedInterval() {
+        for (int i = 0; i < 50; i++) {
+            assertThat(game.generateNumber(50, 100)).isBetween(50, 100);
+        }
+    }
+
+    @Test
+    void identicalBoundaries() {
+        assertThat(game.generateNumber(50, 50)).isEqualTo(50);
+    }
+
+    @Test
+    void negativeBoundaries() {
+        assertThat(game.generateNumber(-100, -50)).isBetween(-100, -50);
+    }
+
+    @Test
     void correctGuess() {
         assertThat(game.compare(50, 50)).isEqualTo(0);
     }

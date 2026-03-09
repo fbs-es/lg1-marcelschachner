@@ -1,9 +1,17 @@
 package fbs.lg1;
 
+import java.util.Random;
 import java.util.Scanner;
 
 public class ZahlenRaten {
 
+    public int generateNumber(int uG, int oG) {
+        Random random = new Random();
+        int randomNumber = uG + random.nextInt(oG - uG + 1);
+        return randomNumber;
+    }
+
+    @Deprecated
     public int generateNumber() {
         return (int) (Math.random() * 100) + 1;
     }
@@ -27,10 +35,15 @@ public class ZahlenRaten {
 
     public void run() {
         try (Scanner sc = new Scanner(System.in)) {
-            int target = generateNumber();
+            System.out.println("Zwischen welchen zwei Zahlen willst du raten: ");
+            System.out.print("Minimum: ");
+            int uG = sc.nextInt();
+            System.out.print("Maximum: ");
+            int oG = sc.nextInt();
+            int target = generateNumber(uG, oG);
             int attempts = 0;
 
-            System.out.println("Errate meine Zahl zwischen 1 und 100");
+            System.out.println("Errate meine Zahl zwischen " + uG + " und " + oG);
 
             while (true) {
                 System.out.print("Tipp: ");

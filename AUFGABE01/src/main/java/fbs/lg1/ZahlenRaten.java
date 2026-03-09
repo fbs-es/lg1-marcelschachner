@@ -33,7 +33,7 @@ public class ZahlenRaten {
             return "kalt";
     }
 
-    public void run() {
+    public void runHumanGuesses() {
         try (Scanner sc = new Scanner(System.in)) {
             System.out.println("Zwischen welchen zwei Zahlen willst du raten: ");
             System.out.print("Minimum: ");
@@ -58,6 +58,33 @@ public class ZahlenRaten {
                 else {
                     System.out.println("Richtig! Du hast " + attempts + " Versuche gebraucht.");
                     break;
+                }
+            }
+        }
+    }
+
+    public void runComputerGuesses() {
+        try (Scanner sc = new Scanner(System.in)) {
+            System.out.println("Denke dir eine Zahl aus. Der Computer wird sie mit deiner Hilfe erraten!");
+            System.out.print("Untere Grenze: ");
+            int uG = sc.nextInt();
+            System.out.print("Obere Grenze: ");
+            int oG = sc.nextInt();
+            int attempts = 0;
+
+            while (true) {
+                int randomNumber = generateNumber(uG, oG);
+                attempts++;
+                System.out.println("Ist deine Zahl " + randomNumber + "? (Kleiner/Größer/Gleich): ");
+                String answer = sc.next();
+
+                if (answer.equals("Gleich")) {
+                    System.out.println("Der Computer hat deine Zahl in " + attempts + " Versuchen erraten!");
+                    break;
+                } else if (answer.equals("Kleiner")) {
+                    oG = randomNumber - 1;
+                } else if (answer.equals("Größer")) {
+                    uG = randomNumber + 1;
                 }
             }
         }

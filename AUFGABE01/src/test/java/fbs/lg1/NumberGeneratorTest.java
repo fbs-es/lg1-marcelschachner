@@ -35,4 +35,30 @@ public class NumberGeneratorTest {
     void negativeBoundaries() {
         assertThat(NumberGenerator.generateNumber(-100, -50)).isBetween(-100, -50);
     }
+
+    @Test
+    void binarySearchGuessReturnsMiddle() {
+        assertThat(NumberGenerator.binarySearchGuess(1, 100)).isEqualTo(50);
+    }
+
+    @Test
+    void binarySearchGuessWithEvenRange() {
+        assertThat(NumberGenerator.binarySearchGuess(1, 11)).isEqualTo(6);
+    }
+
+    @Test
+    void binarySearchGuessWithIdenticalBoundaries() {
+        assertThat(NumberGenerator.binarySearchGuess(50, 50)).isEqualTo(50);
+    }
+
+    @Test
+    void binarySearchGuessWithNegativeBoundaries() {
+        assertThat(NumberGenerator.binarySearchGuess(-100, -50)).isEqualTo(-75);
+    }
+
+    @Test
+    void binarySearchGuessIsAlwaysInRange() {
+        assertThat(NumberGenerator.binarySearchGuess(1, 100)).isBetween(1, 100);
+        assertThat(NumberGenerator.binarySearchGuess(10, 20)).isBetween(10, 20);
+    }
 }

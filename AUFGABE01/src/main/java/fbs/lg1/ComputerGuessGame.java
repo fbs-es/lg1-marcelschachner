@@ -6,6 +6,8 @@ public class ComputerGuessGame {
 
     public void run(Scanner sc) {
         System.out.println("Denke dir eine Zahl aus. Der Computer wird sie mit deiner Hilfe erraten!");
+        System.out.print("Suchmethode (1 = Binäre Suche, 2 = Zufällig): ");
+        int mode = sc.nextInt();
         System.out.print("Untere Grenze: ");
         int uG = sc.nextInt();
         System.out.print("Obere Grenze: ");
@@ -13,7 +15,7 @@ public class ComputerGuessGame {
         int attempts = 0;
 
         while (true) {
-            int guess = NumberGenerator.generateNumber(uG, oG);
+            int guess = (mode == 1) ? NumberGenerator.binarySearchGuess(uG, oG) : NumberGenerator.generateNumber(uG, oG);
             attempts++;
             System.out.println("Ist deine Zahl " + guess + "? (Kleiner/Größer/Gleich): ");
             String answer = sc.next();

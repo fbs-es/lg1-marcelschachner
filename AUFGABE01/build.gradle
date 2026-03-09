@@ -1,0 +1,7 @@
+description = 'Zahlenraten Spiel'
+
+apply plugin: 'application'
+
+application {
+    mainClass = 'fbs.lg1.Main'
+}

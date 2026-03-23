@@ -1,4 +1,4 @@
-package fbs.lg1;
+package fbs.lg1.checks;
 
 public enum PackageResult {
     DANGEROUS,

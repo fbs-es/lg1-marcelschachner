@@ -1,7 +1,10 @@
-package fbs.lg1;
+package fbs.lg1.checks;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import fbs.lg1.Package;
 
 public class PackageCheckerTest {
 

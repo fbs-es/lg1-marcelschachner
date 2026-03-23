@@ -1,4 +1,6 @@
-package fbs.lg1;
+package fbs.lg1.checks;
+
+import fbs.lg1.Package;
 
 public class PackageChecker {
 

@@ -1,0 +1,5 @@
+Ideen:
+printKinosaal bleibt
+dann noch PrintKinosaalHighlight = new int[][] oder so und dann gibt der user ein wie viele Sitze er will
+Dann 2 for schleifen, dann gibt er die Sitze zurück
+dann 2 methoden zum reservieren falls er ja sagt, oder verwerfen und neu suchen falls er nein sagt. 

@@ -3,7 +3,6 @@ package fbs.lg1.inventory;
 import java.util.EnumMap;
 import java.util.Map;
 
-import fbs.lg1.Drinks;
 
 public class Stock {
 
@@ -28,7 +27,6 @@ public class Stock {
         drinks.put(drink, drinks.get(drink) - 1);
     }
 
-    // TODO foreach
     public EnumMap<Drinks, Integer> pruefeNachfuellbedarf() {
         EnumMap<Drinks, Integer> liste = new EnumMap<>(Drinks.class);
         for (Drinks drink : Drinks.values()) {
@@ -49,12 +47,10 @@ public class Stock {
         return bedarf;
     }
 
-    // TODO foreach wie bei Münzen
     public void auffuellen(Map<Drinks, Integer> lieferung) {
-        for (Map.Entry<Drinks, Integer> entry : lieferung.entrySet()) {
-            Drinks drink = entry.getKey();
-            int neu = drinks.get(drink) + entry.getValue();
+        lieferung.forEach((drink, menge) -> {
+            int neu = drinks.get(drink) + menge;
             drinks.put(drink, Math.min(neu, drink.getMaximumStock()));
-        }
+        });
     }
 }

@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import fbs.lg1.cointray.Muenzen;
+import fbs.lg1.inventory.Drinks;
 import fbs.lg1.inventory.Inventory;
 import fbs.lg1.util.CurrencyFormatter;
 import org.junit.jupiter.api.Test;

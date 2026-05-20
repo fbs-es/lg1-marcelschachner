@@ -1,4 +1,3 @@
-// Objektorientiert umdenken
 package fbs.lg1;
 
 import java.util.EnumMap;
@@ -6,6 +5,7 @@ import java.util.Map;
 import java.util.Scanner;
 
 import fbs.lg1.cointray.Muenzen;
+import fbs.lg1.inventory.Drinks;
 import fbs.lg1.inventory.Inventory;
 import fbs.lg1.util.CurrencyFormatter;
 
@@ -51,7 +51,6 @@ public class Getraenkautomat {
         return inventory.kannWechseln(betrag, einwurf);
     }
 
-    // TODO trennen von verkaufe und ausgabe
     public boolean verkaufe(Drinks drink, Map<Muenzen, Integer> einwurf) {
         if (inventory.getStockQuantity(drink) == 0) {
             System.out.println(drink.getName() + " ist ausverkauft.");
@@ -79,9 +78,13 @@ public class Getraenkautomat {
         } else {
             einwurf.forEach((m, n) -> inventory.setCoinCount(m, inventory.getCoinCount(m) + n));
         }
+        ausgabe(drink);
+        return true;
+    }
+
+    private void ausgabe(Drinks drink) {
         inventory.dispense(drink);
         System.out.println(drink.getName() + " ausgegeben.");
-        return true;
     }
 
     public void run() {

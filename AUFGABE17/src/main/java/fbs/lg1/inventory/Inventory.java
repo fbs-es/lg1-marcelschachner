@@ -4,7 +4,6 @@ package fbs.lg1.inventory;
 import java.util.EnumMap;
 import java.util.Map;
 
-import fbs.lg1.Drinks;
 import fbs.lg1.cointray.CashBox;
 import fbs.lg1.cointray.Muenzen;
 

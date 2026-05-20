@@ -1,6 +1,5 @@
 package fbs.lg1.inventory;
 
-import fbs.lg1.Drinks;
 import fbs.lg1.cointray.Muenzen;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;

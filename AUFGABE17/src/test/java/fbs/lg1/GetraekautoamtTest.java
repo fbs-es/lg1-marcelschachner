@@ -3,6 +3,7 @@ package fbs.lg1;
 import java.util.EnumMap;
 import java.util.Map;
 import fbs.lg1.cointray.Muenzen;
+import fbs.lg1.inventory.Drinks;
 import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 

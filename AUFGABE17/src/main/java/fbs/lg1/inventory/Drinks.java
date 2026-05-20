@@ -1,5 +1,4 @@
-// TODO Drinks refactoren in inventory
-package fbs.lg1;
+package fbs.lg1.inventory;
 
 public enum Drinks {
     COLA("Cola", "Coca Cola", 150, 5, 10),

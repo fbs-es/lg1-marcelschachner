@@ -1,8 +1,9 @@
 package fbs.lg1;
 
-import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
 
 class ScooterTest {
 
@@ -77,8 +78,10 @@ class ScooterTest {
     @Test
     void testAkkuVerringernInvalid() {
         Scooter scooter = new Scooter("S-001");
-        assertThatThrownBy(() -> scooter.akkuVerringern(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> scooter.akkuVerringern(-5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> scooter.akkuVerringern(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> scooter.akkuVerringern(-5))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(scooter.checkAkkustand()).isEqualTo(100);
     }
 }

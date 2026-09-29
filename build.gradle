@@ -18,6 +18,11 @@ subprojects {
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
+    javadoc {
+        options.encoding = 'UTF-8'
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+
     test {
         useJUnitPlatform()
         reports {
@@ -55,6 +60,12 @@ task listTasks {
         }
         println "-"*60 + "\n"
     }
+}
+
+task apiDocs {
+    group = "Documentation"
+    description = "Erzeugt die Javadoc-API-Dokumentation für alle Teilprojekte."
+    dependsOn subprojects.javadoc
 }
 
 task checkAllTasks {

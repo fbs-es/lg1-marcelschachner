@@ -2,7 +2,19 @@ package fbs.lg1;
 
 import java.time.Duration;
 
+/**
+ * Demoprogramm für den Scooterverleih.
+ *
+ * <p>Spielt mit einer {@code FakeClock} einen kompletten Ablauf durch: normale Fahrt, Fahrt mit
+ * zu leerem Akku, Beenden ohne laufende Fahrt, lange Fahrt mit Sperre und Mahnung sowie den
+ * Kontoausgleich, und gibt zum Schluss die Historie aus. Alle Ausgaben erfolgen auf Deutsch.
+ */
 public class App {
+    /**
+     * Startet die Demo.
+     *
+     * @param args wird nicht verwendet
+     */
     public static void main(String[] args) {
         FakeClock clock = FakeClock.start();
         Scooter scooter = new Scooter("S-001");

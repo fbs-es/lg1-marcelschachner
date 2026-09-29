@@ -1,11 +1,13 @@
 package fbs.lg1;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 class AusleihungTest {
 
@@ -39,21 +41,25 @@ class AusleihungTest {
 
     @Test
     void testInitInvalidArguments() {
-        assertThatThrownBy(() -> new Ausleihung(null, clock)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Ausleihung(scooter, null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Ausleihung(null, clock))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Ausleihung(scooter, null))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(scooter.checkIstGesperrt()).isTrue();
     }
 
     @Test
     void testInitScooterInUse() {
         new Ausleihung(scooter, clock);
-        assertThatThrownBy(() -> new Ausleihung(scooter, clock)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new Ausleihung(scooter, clock))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void testInitAkkuExactly15() {
         scooter.akkuVerringern(85);
-        assertThatThrownBy(() -> new Ausleihung(scooter, clock)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new Ausleihung(scooter, clock))
+                .isInstanceOf(IllegalStateException.class);
         assertThat(scooter.checkIstGesperrt()).isTrue();
     }
 

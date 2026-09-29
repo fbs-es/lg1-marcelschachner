@@ -1,12 +1,14 @@
 package fbs.lg1;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.time.Duration;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KundeTest {
 
@@ -40,7 +42,8 @@ class KundeTest {
 
     @Test
     void testInitInvalid() {
-        assertThatThrownBy(() -> new Kunde(null, "Marcel", "schachner.marcel@icloud.com", 10, clock))
+        assertThatThrownBy(
+                        () -> new Kunde(null, "Marcel", "schachner.marcel@icloud.com", 10, clock))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new Kunde(" ", "Marcel", "schachner.marcel@icloud.com", 10, clock))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -56,7 +59,14 @@ class KundeTest {
 
     @Test
     void testStartguthabenTooLow() {
-        assertThatThrownBy(() -> new Kunde("K-1", "Marcel", "schachner.marcel@icloud.com", 9.99, clock))
+        assertThatThrownBy(
+                        () ->
+                                new Kunde(
+                                        "K-1",
+                                        "Marcel",
+                                        "schachner.marcel@icloud.com",
+                                        9.99,
+                                        clock))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -185,8 +195,10 @@ class KundeTest {
 
     @Test
     void testKontoAusgleichenInvalid() {
-        assertThatThrownBy(() -> kunde.kontoAusgleichen(0)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> kunde.kontoAusgleichen(-5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> kunde.kontoAusgleichen(0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> kunde.kontoAusgleichen(-5))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThat(kunde.showGuthaben()).isEqualTo(10.00);
     }
 
@@ -224,7 +236,10 @@ class KundeTest {
     @Test
     void testMahnungSentWhenGuthabenNegative() {
         String output = captureOutput(() -> fahre(60));
-        assertThat(output).contains("Mahnung").contains("schachner.marcel@icloud.com").contains("-2.0");
+        assertThat(output)
+                .contains("Mahnung")
+                .contains("schachner.marcel@icloud.com")
+                .contains("-2.0");
     }
 
     @Test

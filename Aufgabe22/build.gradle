@@ -1,0 +1,8 @@
+description = 'Produktbewertungen'
+
+javadoc {
+    options.tags(
+            'invariant:t:Invarianten:',
+            'pre:cm:Vorbedingungen:',
+            'post:cm:Nachbedingungen:')
+}

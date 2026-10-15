@@ -18,6 +18,8 @@ public class Bestellung {
      *
      * @throws IllegalArgumentException wenn eine Angabe fehlt oder ungültig ist
      */
+
+    // TODO Produkt entfernen
     public Bestellung(
             int bestellnummer, Date bestelldatum, Kunde kunde, Produkt produkt, int menge) {
         if (bestellnummer <= 0) {

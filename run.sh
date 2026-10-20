@@ -48,11 +48,11 @@ else
 fi
 
 gum log --level info "Baue $NAME ..."
-if ! ./gradlew -q ":$NAME:classes"; then
+if ! ./gradlew -q ":$NAME:classes" ":$NAME:copyRuntimeLibs"; then
 	gum log --level error "Build fehlgeschlagen."
 	exit 1
 fi
 
 gum log --level info "Starte $PACKAGE.$MAIN_CLASS"
 echo ""
-java -ea -cp "$NAME/build/classes/java/main" "$PACKAGE.$MAIN_CLASS"
+java -ea -cp "$NAME/build/classes/java/main:$NAME/build/runtime-libs/*" "$PACKAGE.$MAIN_CLASS"

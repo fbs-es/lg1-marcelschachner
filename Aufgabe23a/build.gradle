@@ -1,0 +1,19 @@
+description = 'Bestellung mit PaymentService-Modul'
+
+repositories {
+    if (findProperty('repo') == 'mavenLocal') {
+        mavenLocal()
+    } else {
+        maven {
+            url = 'https://maven.pkg.github.com/schachnermarcel/payment-service'
+            credentials {
+                username = findProperty('gpr.user')
+                password = findProperty('gpr.key')
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation 'fbs.lg1:payment:1.0.0'
+}

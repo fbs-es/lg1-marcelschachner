@@ -18,6 +18,11 @@ subprojects {
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
+    task copyRuntimeLibs(type: Copy) {
+        from configurations.runtimeClasspath
+        into layout.buildDirectory.dir('runtime-libs')
+    }
+
     javadoc {
         options.encoding = 'UTF-8'
         options.addStringOption('Xdoclint:none', '-quiet')

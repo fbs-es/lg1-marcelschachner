@@ -1,0 +1,74 @@
+.zurueck { display: inline-block; margin-bottom: 0.75rem; }
+
+.kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.unter { margin: 0.2rem 0 0; color: var(--grau); }
+
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 6px;
+  background: var(--rot);
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.werte {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 0.6rem;
+}
+
+.rot { color: var(--rot); }
+
+.balken {
+  height: 0.9rem;
+  border-radius: 999px;
+  background: var(--linie);
+  overflow: hidden;
+}
+
+.fuellung {
+  height: 100%;
+  background: var(--gruen);
+  transition: width 0.2s;
+}
+
+.fuellung.ueber { background: var(--rot); }
+
+tr.eil td { background: var(--rot-hell); }
+
+small { color: var(--grau); margin-left: 0.3rem; }
+
+.details { color: var(--grau); max-width: 18rem; }
+
+.aktionen { white-space: nowrap; text-align: right; }
+
+.aktionen button { margin-left: 0.25rem; }
+
+.klein { width: 5rem; }
+
+.typ {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--flaeche);
+}
+
+.typ-MUSIK { color: var(--blau); }
+.typ-WERBUNG { color: #8a5a00; }
+.typ-MODERATION { color: var(--gruen); }
+.typ-EILMELDUNG { color: #fff; background: var(--rot); }
+
+.loeschen { color: var(--rot); }

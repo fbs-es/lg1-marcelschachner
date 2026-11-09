@@ -1,0 +1,34 @@
+.leiste {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--tinte);
+  color: #fff;
+}
+
+.marke {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.onair {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--rot);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+.untertitel { color: #b9c0cc; }
+
+.inhalt {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}

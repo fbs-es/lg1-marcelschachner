@@ -1,0 +1,66 @@
+:root {
+  --tinte: #1d2433;
+  --grau: #5f6b7a;
+  --linie: #dfe3e8;
+  --flaeche: #f1f3f5;
+  --blau: #1f5fbf;
+  --gruen: #2f8f4e;
+  --rot: #c8102e;
+  --rot-hell: #fdecee;
+  color: var(--tinte);
+  font-family: system-ui, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  font-size: 15px;
+}
+
+body { margin: 0; background: #fafbfc; }
+
+h1 { margin: 0; font-size: 1.6rem; }
+h2 { margin: 0 0 0.6rem; font-size: 1.1rem; }
+h3 { margin: 0 0 0.6rem; font-size: 1rem; }
+
+a { color: var(--blau); }
+
+.karte {
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.zahl { font-variant-numeric: tabular-nums; }
+
+.leer { color: var(--grau); }
+
+.tabelle { width: 100%; border-collapse: collapse; }
+.tabelle th, .tabelle td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--linie); text-align: left; vertical-align: middle; }
+.tabelle th { font-size: 0.8rem; color: var(--grau); font-weight: 600; }
+
+.formular .zeile { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; align-items: flex-end; }
+.formular label, .kopf label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--grau); }
+.formular .breit { flex: 1; min-width: 12rem; }
+.formular .hinweis { margin: 0 0 0.75rem; color: var(--grau); }
+.formular .knoepfe { display: flex; gap: 0.5rem; }
+.laufstelle { padding-bottom: 0.45rem; color: var(--grau); font-variant-numeric: tabular-nums; }
+
+input, select, textarea {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #c3cad3;
+  border-radius: 5px;
+  font: inherit;
+  color: var(--tinte);
+  background: #fff;
+}
+
+button {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #c3cad3;
+  border-radius: 5px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.4; cursor: default; }
+button.primaer { background: var(--blau); border-color: var(--blau); color: #fff; }
+button.gefahr { background: var(--rot); border-color: var(--rot); color: #fff; font-weight: 600; }

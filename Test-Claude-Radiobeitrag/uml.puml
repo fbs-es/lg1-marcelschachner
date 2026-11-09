@@ -1,0 +1,140 @@
+@startuml Test-Claude-Radiobeitrag
+skinparam classAttributeIconSize 0
+hide empty members
+
+class Radiosender {
+  - name : String {readOnly}
+  - frequenz : double {readOnly}
+  - radioprogramm : Radioprogramm {readOnly}
+  + Radiosender(name : String, frequenz : double, radioprogramm : Radioprogramm)
+  - checkInvariant() : void
+  + showName() : String
+  + showFrequenz() : double
+  + showRadioprogramm() : Radioprogramm
+}
+
+class Radioprogramm {
+  - datum : LocalDate {readOnly}
+  - sendungen : List<Radiosendung> {readOnly}
+  + Radioprogramm(datum : LocalDate)
+  + sendungHinzufuegen(sendung : Radiosendung) : void
+  - findUeberschneidung(sendung : Radiosendung) : Radiosendung
+  - checkInvariant() : void
+  + showDatum() : LocalDate
+  + showSendungen() : List<Radiosendung>
+}
+
+class Radiosendung {
+  - name : String {readOnly}
+  - moderator : String {readOnly}
+  - startzeit : LocalTime {readOnly}
+  - endzeit : LocalTime {readOnly}
+  - maximaldauer : int {readOnly}
+  - beitraege : List<Radiobeitrag> {readOnly}
+  + Radiosendung(name : String, moderator : String, startzeit : LocalTime, endzeit : LocalTime, maximaldauer : int)
+  + beitragHinzufuegen(beitrag : Radiobeitrag) : void
+  + beitragWiederherstellen(beitrag : Radiobeitrag) : void
+  + beitragKuerzen(beitrag : Radiobeitrag, neueDauer : int) : void
+  + beitragLoeschen(beitrag : Radiobeitrag) : void
+  + beitragVerschieben(beitrag : Radiobeitrag, neuerIndex : int) : void
+  + eilmeldungEinfuegen(eilmeldung : Eilmeldung, laufzeit : int) : void
+  + berechneGesamtdauer() : int
+  + berechneRestzeit() : int
+  - findBeitragBeiLaufzeit(laufzeit : int) : Radiobeitrag
+  - startzeitpunkteBerechnen() : void
+  - checkInvariant() : void
+  + showName() : String
+  + showModerator() : String
+  + showStartzeit() : LocalTime
+  + showEndzeit() : LocalTime
+  + showMaximaldauer() : int
+  + showBeitraege() : List<Radiobeitrag>
+  + istZeitlimitUeberschritten() : boolean
+}
+
+abstract class Radiobeitrag {
+  - titel : String {readOnly}
+  - dauer : int
+  - startzeitpunkt : int
+  + Radiobeitrag(titel : String, dauer : int)
+  # {abstract} erstelleFortsetzung(restdauer : int) : Radiobeitrag
+  ~ aendereDauer(neueDauer : int) : void
+  ~ aendereStartzeitpunkt(neuerStartzeitpunkt : int) : void
+  - checkInvariant() : void
+  + showTitel() : String
+  + showDauer() : int
+  + showStartzeitpunkt() : int
+}
+
+class Musikbeitrag {
+  - kuenstler : String {readOnly}
+  - album : String {readOnly}
+  - genre : Musikgenre {readOnly}
+  + Musikbeitrag(titel : String, dauer : int, kuenstler : String, album : String, genre : Musikgenre)
+  # erstelleFortsetzung(restdauer : int) : Radiobeitrag
+  - checkInvariant() : void
+  + showKuenstler() : String
+  + showAlbum() : String
+  + showGenre() : Musikgenre
+}
+
+class Werbebeitrag {
+  - kunde : String {readOnly}
+  - werbebudget : double {readOnly}
+  + Werbebeitrag(titel : String, dauer : int, kunde : String, werbebudget : double)
+  # erstelleFortsetzung(restdauer : int) : Radiobeitrag
+  - checkInvariant() : void
+  + showKunde() : String
+  + showWerbebudget() : double
+}
+
+class Moderation {
+  - sprechertext : String {readOnly}
+  + Moderation(titel : String, dauer : int, sprechertext : String)
+  # erstelleFortsetzung(restdauer : int) : Radiobeitrag
+  - checkInvariant() : void
+  + showSprechertext() : String
+}
+
+class Eilmeldung {
+  - dringlichkeitsstufe : int {readOnly}
+  - region : String {readOnly}
+  + Eilmeldung(titel : String, dauer : int, dringlichkeitsstufe : int, region : String)
+  # erstelleFortsetzung(restdauer : int) : Radiobeitrag
+  - checkInvariant() : void
+  + showDringlichkeitsstufe() : int
+  + showRegion() : String
+}
+
+enum Musikgenre {
+  POP
+  ROCK
+  JAZZ
+  KLASSIK
+  HIPHOP
+  ELEKTRONISCH
+  SCHLAGER
+}
+
+Radiosender "1" --> "1" Radioprogramm : sendet >
+Radioprogramm "1" o-- "0..*" Radiosendung : sendungen
+Radiosendung "1" o-- "0..*" Radiobeitrag : beitraege {ordered}
+Radiobeitrag <|-- Musikbeitrag
+Radiobeitrag <|-- Werbebeitrag
+Radiobeitrag <|-- Moderation
+Radiobeitrag <|-- Eilmeldung
+Musikbeitrag --> "1" Musikgenre
+
+note right of Radiosendung
+  Zeiten in Sekunden.
+  startzeitpunkt jedes Beitrags = Summe der Dauern
+  aller vorherigen Beiträge (wird nach Hinzufügen,
+  Kürzen, Löschen, Verschieben, Einfügen neu berechnet).
+  eilmeldungEinfuegen: laufzeit = Laufstelle seit Sendungsbeginn.
+  Liegt sie mitten in einem Beitrag, wird dieser geteilt:
+  Teil 1 | Eilmeldung | Fortsetzung (Restdauer).
+  Bei Überschreitung der Maximaldauer: Warnung an den Moderator.
+  beitragWiederherstellen: Wiederaufbau eines gespeicherten
+  Sendeplans ohne Prüfung der Maximaldauer.
+end note
+@enduml

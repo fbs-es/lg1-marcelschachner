@@ -1,0 +1,87 @@
+<section class="kopf">
+  <div>
+    <h1>Programmübersicht</h1>
+    @if (ausgewaehlt(); as s) {
+      <p class="unter">{{ s.name }} · {{ s.frequenz }} MHz · {{ formatDatum(s.datum) }}</p>
+    }
+  </div>
+  @if (sender().length > 0) {
+    <label>Sender
+      <select #auswahl [value]="ausgewaehlt()?.id" (change)="senderWaehlenNachId(auswahl.value)">
+        @for (s of sender(); track s.id) {
+          <option [value]="s.id">{{ s.name }} ({{ s.frequenz }} MHz)</option>
+        }
+      </select>
+    </label>
+  }
+</section>
+
+@if (programm()) {
+  <section class="karte">
+    <h2>Zeitleiste</h2>
+    <div class="zeitleiste" aria-label="Zeitleiste des Tages">
+      @for (h of stunden; track h) {
+        <span class="stunde" [style.left.%]="(h / 24) * 100">{{ h }}:00</span>
+      }
+      @for (sendung of sendungen(); track sendung.id) {
+        <a
+          class="block"
+          [class.ueber]="sendung.zeitlimitUeberschritten"
+          [routerLink]="['/sendungen', sendung.id]"
+          [style.left.%]="linksProzent(sendung)"
+          [style.width.%]="breiteProzent(sendung)"
+          [title]="sendung.name + ' ' + formatUhrzeitKurz(sendung.startzeit) + '–' + formatUhrzeitKurz(sendung.endzeit)"
+        >{{ sendung.name }}</a>
+      }
+    </div>
+
+    <h2>Sendungen</h2>
+    @if (sendungen().length === 0) {
+      <p class="leer">Noch keine Sendungen im Programm.</p>
+    } @else {
+      <table class="tabelle">
+        <thead>
+          <tr><th>Zeit</th><th>Sendung</th><th>Moderation</th><th>Verplant</th><th>Restzeit</th></tr>
+        </thead>
+        <tbody>
+          @for (sendung of sendungen(); track sendung.id) {
+            <tr [class.ueber]="sendung.zeitlimitUeberschritten">
+              <td class="zahl">{{ formatUhrzeitKurz(sendung.startzeit) }}–{{ formatUhrzeitKurz(sendung.endzeit) }}</td>
+              <td><a [routerLink]="['/sendungen', sendung.id]">{{ sendung.name }}</a></td>
+              <td>{{ sendung.moderator }}</td>
+              <td class="zahl">{{ formatDauer(sendung.gesamtdauer) }} / {{ formatDauer(sendung.maximaldauer) }}</td>
+              <td class="zahl">{{ formatDauer(sendung.restzeit) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+
+  <form class="formular karte" (ngSubmit)="sendungAnlegen()">
+    <h3>Sendung anlegen</h3>
+    <div class="zeile">
+      <label class="breit">Name <input name="sendungName" [(ngModel)]="sendungName" required /></label>
+      <label class="breit">Moderator <input name="sendungModerator" [(ngModel)]="sendungModerator" required /></label>
+    </div>
+    <div class="zeile">
+      <label>Beginn <input name="sendungStart" type="time" [(ngModel)]="sendungStart" /></label>
+      <label>Ende <input name="sendungEnde" type="time" [(ngModel)]="sendungEnde" /></label>
+      <label>Maximaldauer (Sekunden)
+        <input name="sendungMaximaldauer" type="number" min="1" [(ngModel)]="sendungMaximaldauer" />
+      </label>
+      <span class="laufstelle">= {{ formatDauer(sendungMaximaldauer) }} min</span>
+    </div>
+    <button type="submit" class="primaer">Sendung anlegen</button>
+  </form>
+}
+
+<form class="formular karte" (ngSubmit)="senderAnlegen()">
+  <h3>Neuen Sender mit Programm anlegen</h3>
+  <div class="zeile">
+    <label class="breit">Name <input name="senderName" [(ngModel)]="senderName" required /></label>
+    <label>Frequenz (MHz) <input name="senderFrequenz" type="number" step="0.1" [(ngModel)]="senderFrequenz" /></label>
+    <label>Datum <input name="senderDatum" type="date" [(ngModel)]="senderDatum" /></label>
+  </div>
+  <button type="submit">Sender anlegen</button>
+</form>

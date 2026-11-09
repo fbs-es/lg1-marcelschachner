@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: test-claude-radiobeitrag
+  datasource:
+    url: jdbc:mariadb://localhost:3307/lg1
+    username: lg1
+    password: lg1
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

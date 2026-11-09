@@ -1,0 +1,24 @@
+<form class="formular eilmeldung" (ngSubmit)="senden()">
+  <h3>Eilmeldung einfügen</h3>
+  <p class="hinweis">
+    Die Eilmeldung wird an der Laufstelle eingefügt. Liegt sie mitten in einem Beitrag, wird dieser geteilt.
+  </p>
+  <div class="zeile">
+    <label class="breit">Titel <input name="titel" [(ngModel)]="titel" required /></label>
+    <label>Dauer (Sekunden) <input name="dauer" type="number" min="1" [(ngModel)]="dauer" /></label>
+    <label>Dringlichkeit (1–5)
+      <input name="dringlichkeitsstufe" type="number" min="1" max="5" [(ngModel)]="dringlichkeitsstufe" />
+    </label>
+  </div>
+  <div class="zeile">
+    <label class="breit">Region <input name="region" [(ngModel)]="region" /></label>
+    <label>Laufzeit (Sekunden seit Beginn)
+      <input name="laufzeit" type="number" min="0" [(ngModel)]="laufzeit" />
+    </label>
+    <span class="laufstelle">Laufstelle {{ formatDauer(laufzeit) }}</span>
+  </div>
+  <div class="knoepfe">
+    <button type="submit" class="gefahr">Eilmeldung jetzt einfügen</button>
+    <button type="button" (click)="abbrechen.emit()">Abbrechen</button>
+  </div>
+</form>

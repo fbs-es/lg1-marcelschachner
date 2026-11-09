@@ -1,0 +1,93 @@
+<a routerLink="/" class="zurueck">← Programmübersicht</a>
+
+@if (plan(); as p) {
+  <section class="kopf">
+    <div>
+      <h1>{{ p.name }}</h1>
+      <p class="unter">
+        {{ formatUhrzeitKurz(p.startzeit) }}–{{ formatUhrzeitKurz(p.endzeit) }} · Moderation: {{ p.moderator }}
+      </p>
+    </div>
+    <button type="button" class="gefahr" (click)="eilmeldungOffen.set(true)">Eilmeldung einfügen</button>
+  </section>
+
+  @if (p.zeitlimitUeberschritten) {
+    <div class="banner" role="alert">
+      <strong>Zeitlimit überschritten um {{ formatDauer(-p.restzeit) }} min!</strong>
+      @if (warnung()) {
+        <span>{{ warnung() }}</span>
+      } @else {
+        <span>Die Sendung ist länger als ihre Maximaldauer. Bitte Beiträge kürzen oder löschen.</span>
+      }
+    </div>
+  }
+
+  <section class="karte zeiten">
+    <div class="werte">
+      <span>Verplant <b class="zahl">{{ formatDauer(p.gesamtdauer) }}</b></span>
+      <span>Maximal <b class="zahl">{{ formatDauer(p.maximaldauer) }}</b></span>
+      <span [class.rot]="p.restzeit < 0">Restzeit <b class="zahl">{{ formatDauer(p.restzeit) }}</b></span>
+    </div>
+    <div
+      class="balken"
+      role="progressbar"
+      [attr.aria-valuenow]="p.gesamtdauer"
+      aria-valuemin="0"
+      [attr.aria-valuemax]="p.maximaldauer"
+    >
+      <div class="fuellung" [class.ueber]="p.zeitlimitUeberschritten" [style.width.%]="fortschritt()"></div>
+    </div>
+  </section>
+
+  @if (eilmeldungOffen()) {
+    <div class="karte">
+      <app-eilmeldung-formular (absenden)="eilmeldungEinfuegen($event)" (abbrechen)="eilmeldungOffen.set(false)" />
+    </div>
+  }
+
+  <section class="karte">
+    <h2>Sendeplan</h2>
+    @if (p.beitraege.length === 0) {
+      <p class="leer">Noch keine Beiträge geplant.</p>
+    } @else {
+      <table class="tabelle">
+        <thead>
+          <tr>
+            <th>#</th><th>Start</th><th>Titel</th><th>Typ</th><th>Dauer</th><th>Details</th><th class="aktionen">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (b of p.beitraege; track b.id; let i = $index, erster = $first, letzter = $last) {
+            <tr [class.eil]="b.typ === 'EILMELDUNG'">
+              <td class="zahl">{{ i + 1 }}</td>
+              <td class="zahl">
+                {{ formatUhrzeit(p.startzeit, b.startzeitpunkt) }}
+                <small>+{{ formatDauer(b.startzeitpunkt) }}</small>
+              </td>
+              <td>{{ b.titel }}</td>
+              <td><span class="typ" [class]="'typ typ-' + b.typ">{{ typText(b.typ) }}</span></td>
+              <td class="zahl">{{ formatDauer(b.dauer) }}</td>
+              <td class="details">{{ details(b) }}</td>
+              <td class="aktionen">
+                @if (kuerzenId() === b.id) {
+                  <input type="number" min="1" class="klein" [(ngModel)]="kuerzenDauer" aria-label="Neue Dauer in Sekunden" />
+                  <button type="button" (click)="kuerzenBestaetigen(b)">OK</button>
+                  <button type="button" (click)="kuerzenId.set(null)">×</button>
+                } @else {
+                  <button type="button" [disabled]="erster" (click)="verschieben(b, i - 1)" aria-label="Nach oben">↑</button>
+                  <button type="button" [disabled]="letzter" (click)="verschieben(b, i + 1)" aria-label="Nach unten">↓</button>
+                  <button type="button" (click)="kuerzenStarten(b)">Kürzen</button>
+                  <button type="button" class="loeschen" (click)="loeschen(b)">Löschen</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+
+  <section class="karte">
+    <app-beitrag-formular (absenden)="beitragHinzufuegen($event)" />
+  </section>
+}

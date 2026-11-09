@@ -1,0 +1,59 @@
+<form class="formular" (ngSubmit)="senden()">
+  <h3>Beitrag hinzufügen</h3>
+  <div class="zeile">
+    <label>Typ
+      <select name="typ" [(ngModel)]="typ">
+        @for (t of typen; track t.wert) {
+          <option [value]="t.wert">{{ t.text }}</option>
+        }
+      </select>
+    </label>
+    <label class="breit">Titel
+      <input name="titel" [(ngModel)]="titel" required />
+    </label>
+    <label>Dauer (Sekunden)
+      <input name="dauer" type="number" min="1" [(ngModel)]="dauer" required />
+    </label>
+  </div>
+
+  @switch (typ) {
+    @case ('MUSIK') {
+      <div class="zeile">
+        <label class="breit">Künstler <input name="kuenstler" [(ngModel)]="kuenstler" /></label>
+        <label class="breit">Album <input name="album" [(ngModel)]="album" /></label>
+        <label>Genre
+          <select name="genre" [(ngModel)]="genre">
+            @for (g of genres; track g) {
+              <option [value]="g">{{ g }}</option>
+            }
+          </select>
+        </label>
+      </div>
+    }
+    @case ('WERBUNG') {
+      <div class="zeile">
+        <label class="breit">Kunde <input name="kunde" [(ngModel)]="kunde" /></label>
+        <label>Werbebudget (€)
+          <input name="werbebudget" type="number" min="0" step="0.01" [(ngModel)]="werbebudget" />
+        </label>
+      </div>
+    }
+    @case ('MODERATION') {
+      <div class="zeile">
+        <label class="breit">Sprechertext
+          <textarea name="sprechertext" rows="2" [(ngModel)]="sprechertext"></textarea>
+        </label>
+      </div>
+    }
+    @case ('EILMELDUNG') {
+      <div class="zeile">
+        <label>Dringlichkeit (1–5)
+          <input name="dringlichkeitsstufe" type="number" min="1" max="5" [(ngModel)]="dringlichkeitsstufe" />
+        </label>
+        <label class="breit">Region <input name="region" [(ngModel)]="region" /></label>
+      </div>
+    }
+  }
+
+  <button type="submit" class="primaer">Hinzufügen</button>
+</form>

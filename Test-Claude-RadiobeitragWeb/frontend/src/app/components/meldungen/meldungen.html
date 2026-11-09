@@ -1,0 +1,15 @@
+<div class="stapel" aria-live="assertive">
+  @for (meldung of meldungService.meldungen(); track meldung.id) {
+    <div class="toast" [class]="'toast toast-' + meldung.art" role="alert">
+      <span class="art">
+        @switch (meldung.art) {
+          @case ('fehler') { Fehler }
+          @case ('warnung') { Warnung }
+          @default { OK }
+        }
+      </span>
+      <span class="text">{{ meldung.text }}</span>
+      <button type="button" class="schliessen" (click)="meldungService.schliessen(meldung.id)" aria-label="Meldung schließen">×</button>
+    </div>
+  }
+</div>

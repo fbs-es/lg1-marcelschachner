@@ -43,7 +43,7 @@ Noch keine Fachentities außer diesen Bausteinen. Kein Frontend.
 
 ---
 
-## [ ] 2 Fundament Frontend + Katalog (E02)
+## [x] 2 Fundament Frontend + Katalog (E02) (2026-11-12, e1d663f)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E02-*.md`, `stories/US-02.1-*.md`

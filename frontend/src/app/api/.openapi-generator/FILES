@@ -6,6 +6,7 @@ api.module.ts
 api/adressbuch.service.ts
 api/api.ts
 api/bestellungen.service.ts
+api/gutscheine.service.ts
 api/kunden.service.ts
 api/mahnwesen.service.ts
 api/merkliste.service.ts
@@ -25,6 +26,8 @@ model/bestellung-uebersicht.ts
 model/bestellung.ts
 model/erstattung-buchen.ts
 model/geld.ts
+model/gutschein-anlegen.ts
+model/gutschein.ts
 model/kunde-uebersicht.ts
 model/kunde.ts
 model/lagerbestand.ts
@@ -37,6 +40,7 @@ model/models.ts
 model/paket-anlegen.ts
 model/positionswunsch.ts
 model/problem-detail.ts
+model/produkt-aendern.ts
 model/produkt-anlegen.ts
 model/produkt.ts
 model/registrierung.ts

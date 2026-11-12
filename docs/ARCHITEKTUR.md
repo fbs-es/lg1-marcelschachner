@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 9 (Abschlussdokumentation). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 11 (Pflege von Produkt und Gutschein: US-02.2, US-08.2, D-23). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 Überblick und Begründungen: [arc42.md](arc42.md); technische Entscheidungen: [adr/](adr/README.md); Bedienung: [benutzerhandbuch.md](benutzerhandbuch.md). Dieses Dokument ist die Detailreferenz.
 
@@ -34,17 +34,18 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
 | `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`, übersetzt `MailException`), `ZeitplanKonfiguration` (`@EnableScheduling`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
 | `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`), `GeldDto` (`{cent, waehrung}`, nur `EUR`), `AnschriftDto` (Schema `Anschrift`, genutzt von Kunde und Bestellung) |
-| `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `setzeLagerbestand`, `entnehme(menge)` (409 bei zu wenig Bestand); prüft D-15 und I-7 |
+| `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `aendereStammdaten(titel, listenpreis)` (US-02.2, gleiche Regeln wie beim Anlegen), `setzeLagerbestand`, `entnehme(menge)` (409 bei zu wenig Bestand); prüft D-15 und I-7 |
 | `katalog.persistence` | `ProduktRepository` (Spring Data JPA), `sperreZumEntnehmen` (`PESSIMISTIC_WRITE`, sortiert nach `id`, ADR 0003) |
-| `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID), `sperreZumEntnehmen` (nur innerhalb einer Transaktion, 404 für unbekannte Produkte) |
-| `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
+| `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID), `aendere` (Titel und Preis), `sperreZumEntnehmen` (nur innerhalb einer Transaktion, 404 für unbekannte Produkte) |
+| `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktAendernDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
 | `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`, `lieferanschrift(id)` (Snapshot, 422 ohne Lieferkennzeichen), `fuehreMahnpruefungDurch(stichtag, bestellungen, mahnintervall)` (US-06.1, D-20: mahnt fällige Bestellungen, liefert `Optional<Mahnbenachrichtigung>`); setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
 | `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`), `sperreZumMahnen` (`PESSIMISTIC_WRITE`, D-20) |
 | `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, `pruefeVorhanden` (404 ohne Laden), `sperreZumMahnen` (404), Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
 | `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
-| `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
-| `gutschein.persistence` | `GutscheinRepository.findByCode` |
-| `gutschein.application` | `GutscheinService.zumEinloesen(code)` (422 bei unbekanntem Code) |
+| `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `legeAn(code, rabattArt, prozent, festbetrag, ablaufdatum, heute)` (US-08.2, D-23: Code `[A-Z0-9-]{1,50}`, Rabattwert passend zur Art, sonst 400; Ablaufdatum vor heute 422), `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
+| `gutschein.persistence` | `GutscheinRepository`: `findByCode`, `existsByCode`, `findAllByOrderByCodeAsc` |
+| `gutschein.application` | `GutscheinService`: `legeAn` (heute aus `Clock`; 409 bei vergebenem Code, vorab per `exists` und über den Unique-Constraint beim `saveAndFlush`), `alle`, `finde` (404), `heute`, `zumEinloesen(code)` (422 bei unbekanntem Code) |
+| `gutschein.api` | `GutscheinController`, DTOs `GutscheinAnlegenDto`, `GutscheinDto` (mit `istGueltig` heute) |
 | `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabriken `ausstehend` für erste Zahlung und für Teilzahlung/Erstattung mit Betrag > 0): `aendereStatus` (nur aus `AUSSTEHEND`, 422; Zeitpunkt nur bei `ERFOLGREICH`, D-19), `istErfolgreich`, `istAusstehend`, `istErstattung`; Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
 | `zahlung.api` | `ZahlungController` (Statuswechsel, Erstattung, Buchung abrufen; nutzt `BestellungService`, da `Zahlung` Teil des Bestellungs-Aggregats ist), DTOs `ZahlungDto`, `StatusAenderungDto`, `ErstattungBuchenDto` |
 | `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung); Mahnwesen (D-03, D-20) `istUeberfaellig(stichtag)`, `istMahnungFaellig(stichtag, intervall)`, `mahne(stichtag, intervall)`, `letzteMahnung`, Mahnungen `cascade ALL`; Versand (E07, D-22) `legePaketAn`, `aendereLieferstatus`, `paket(id)` (404 bei fremdem Paket), Pakete `cascade ALL` mit `@OrderColumn` (Anlagereihenfolge). `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
@@ -71,8 +72,12 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | POST | `/api/v1/produkte` | 201 + `Location`, 400 (D-15) |
 | GET | `/api/v1/produkte` | alle Produkte nach Titel |
 | GET | `/api/v1/produkte/{id}` | Produkt mit `istVerfuegbar`, 404 |
+| PUT | `/api/v1/produkte/{id}` | `{titel, listenpreis}` ersetzen: 200, 400 (D-15), 404, 409 Versionskonflikt (US-02.2, D-23) |
 | PUT | `/api/v1/produkte/{id}/lagerbestand` | Bestand absolut setzen, 400 bei < 0, 404, 409 Versionskonflikt |
 | GET | `/api/v1/produkte/{id}/verfuegbarkeit?menge=n` | `{produktId, menge, istVerfuegbar}`, 400 bei menge < 1, 404 |
+| POST | `/api/v1/gutscheine` | `{code, rabattArt, prozent \| festbetrag, ablaufdatum}`: 201 + `Location`, 400, 409 Code vergeben, 422 Ablaufdatum vor heute (US-08.2, D-23) |
+| GET | `/api/v1/gutscheine` | alle Gutscheine nach Code, mit `istGueltig` |
+| GET | `/api/v1/gutscheine/{id}` | ein Gutschein, 404 |
 | POST | `/api/v1/kunden` | Registrierung mit erster Lieferadresse: 201 + `Location`, 400, 409 E-Mail vergeben |
 | GET | `/api/v1/kunden` | Übersicht ohne Adressbuch, nach Nachname und Vorname |
 | GET | `/api/v1/kunden/{kundenId}` | Kunde mit Adressbuch (Anlagereihenfolge), 404 |
@@ -327,8 +332,10 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 |---|---|
 | `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation mit `Warenkorb (n)`), Routen mit `withComponentInputBinding`, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
 | `src/app/api/` | generierter Client (`npm run generate:api`, nie von Hand ändern) |
-| `src/app/gemeinsam/` | `GeldPipe` (Cent → `49,99 €`), `euroInCent` + Validator `euroBetrag` (ohne Gleitkomma), `problemMeldung` (ProblemDetail → Text) |
+| `src/app/gemeinsam/` | `GeldPipe` (Cent → `49,99 €`), `euroInCent` + Validator `euroBetrag` (ohne Gleitkomma), `centAlsEuroEingabe` (Vorbelegung), `problemMeldung` (ProblemDetail → Text) |
 | `src/app/katalog/produkt-liste` | `/produkte`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Verfügbarkeit, "In den Warenkorb" nur bei `istVerfuegbar` |
+| `src/app/katalog/produkt-bearbeiten` | `/produkte/:produktId` (Link „Bearbeiten“ in der Produktliste): Laden, Fehler mit Wiederholen; Formulare „Stammdaten“ (`aendereProdukt`) und „Lagerbestand“ (`setzeLagerbestand`), je Erfolgs- oder ProblemDetail-Meldung (US-02.2) |
+| `src/app/gutschein/gutscheine` | `/gutscheine` (Menüpunkt): Liste mit Rabatt, Ablaufdatum, gültig/abgelaufen; Laden, Fehler, Leerzustand; Formular „Gutschein anlegen“ (Formatprüfung nur der Eingabe, Grenzen prüft das Backend), danach Liste neu laden (US-08.2) |
 | `src/app/katalog/produkt-anlegen` | `/produkte/neu`: Formular, Feld- und Serverfehler, danach zurück zur Liste |
 | `src/app/kunde/kunden-liste` | `/kunden`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Link zum Adressbuch |
 | `src/app/kunde/kunde-registrieren` | `/kunden/neu`: Stammdaten, Lieferadresse, "auch Rechnungsadresse", danach zum Kunden |
@@ -354,10 +361,12 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Domain-Unit | JUnit 5, AssertJ | `GeldTest`, `AnschriftTest`, `BestellnummernGeneratorTest`, `BenachrichtigungTest` |
 | Adapter-Unit | Mockito an der Grenze (`JavaMailSender`) | `MailBenachrichtigungsversandTest` |
 | Web | `@WebMvcTest`, MockMvc | `ZentraleFehlerbehandlungTest` (über Test-Controller `FehlerAusloesenderController`) |
-| Domain-Unit Katalog | JUnit 5, AssertJ | `ProduktTest` (US-02.1 AK1–5, D-15) |
+| Domain-Unit Katalog | JUnit 5, AssertJ | `ProduktTest` (US-02.1 AK1–5, US-02.2 AK1–2, D-15) |
+| API-Integration Produktpflege | MockMvc, PostgreSQL, feste Uhr, `TransactionTemplate` | `ProduktPflegeApiIT` (US-02.2 AK1–6: Bestellung behält Preis, Merkliste zeigt neuen, Versionskonflikt) |
+| API-Integration Gutschein | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `GutscheinApiIT` (US-08.2 AK1–7, Einlösen im Checkout) |
 | Domain-Unit Kunde | JUnit 5, AssertJ | `KundeTest` (US-01.1 bis US-01.3), `EmailTest` (D-13, D-16) |
 | API-Integration Kunde | MockMvc, PostgreSQL | `KundeApiIT` (alle AK US-01.1 bis US-01.3 über HTTP) |
-| Domain-Unit Checkout | JUnit 5, AssertJ | `BestellungTest` (US-04.1 AK1–8, US-08.1 AK1–9), `GutscheinTest` (US-08.1, D-04, D-17) |
+| Domain-Unit Checkout | JUnit 5, AssertJ | `BestellungTest` (US-04.1 AK1–8, US-08.1 AK1–9), `GutscheinTest` (US-08.1, US-08.2 AK1–5, D-04, D-17) |
 | Domain-Unit Zahlungen | JUnit 5, AssertJ | `BezahlstatusTest` (US-05.1 AK1–7, Statusübergänge und Erstattungsgrenze D-19) |
 | API-Integration Zahlungen | MockMvc, PostgreSQL, feste Uhr | `ZahlungApiIT` (US-05.1 AK1/2/4/5/7 über HTTP, Historie mit Bezahlstatus, Statuscodes D-19, `Location`) |
 | Nebenläufigkeit Erstattung | `TransactionTemplate`, Latches | `ErstattungNebenlaeufigkeitIT` (zwei Erstattungen über je 60 € auf 100 €: genau eine) |
@@ -371,4 +380,4 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT` (prüft `frontend/openapi.json` und `docs/api/openapi.yaml`); `./gradlew aktualisiereOpenApi` schreibt beide neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5, US-07.3 AK1/2), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `versandpakete.spec.ts` (US-07.1 bis US-07.3), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5, US-07.3 AK1/2), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `produkt-bearbeiten.spec.ts` (US-02.2), `gutscheine.spec.ts` (US-08.2), `versandpakete.spec.ts` (US-07.1 bis US-07.3), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

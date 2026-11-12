@@ -25,6 +25,7 @@
             <th scope="col" class="zahl">Lagerbestand</th>
             <th scope="col">Verfügbarkeit</th>
             <th scope="col"><span class="unsichtbar">Warenkorb</span></th>
+            <th scope="col"><span class="unsichtbar">Pflege</span></th>
           </tr>
         </thead>
         <tbody>
@@ -54,6 +55,13 @@
                     <span class="im-warenkorb">{{ menge }} im Warenkorb</span>
                   }
                 }
+              </td>
+              <td>
+                <a
+                  [routerLink]="['/produkte', produkt.id]"
+                  [attr.aria-label]="produkt.titel + ' bearbeiten'"
+                  >Bearbeiten</a
+                >
               </td>
             </tr>
           }

@@ -151,4 +151,44 @@ class ProduktTest {
         assertThatThrownBy(() -> produktMitBestand(5).entnehme(0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName("US-02.2 AK1: Titel und Listenpreis werden ersetzt, Titel getrimmt")
+    void stammdatenAendern() {
+        Produkt produkt = produktMitBestand(3);
+
+        produkt.aendereStammdaten("  Stehlampe Nova ", Geld.ausCent(5999));
+
+        assertThat(produkt.getTitel()).isEqualTo("Stehlampe Nova");
+        assertThat(produkt.getListenpreis()).isEqualTo(Geld.ausCent(5999));
+        assertThat(produkt.getLagerbestand()).isEqualTo(3);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    @DisplayName("US-02.2 AK2: leerer Titel wird abgelehnt, Produkt bleibt unverändert")
+    void leererTitelBeimAendern(String titel) {
+        Produkt produkt = produktMitBestand(3);
+
+        assertThatThrownBy(() -> produkt.aendereStammdaten(titel, Geld.ausCent(5999)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(produkt.getTitel()).isEqualTo("Stehlampe");
+        assertThat(produkt.getListenpreis()).isEqualTo(Geld.ausCent(4999));
+    }
+
+    @Test
+    @DisplayName("US-02.2 AK2: Titel über 200 Zeichen oder negativer Preis wird abgelehnt")
+    void ungueltigeStammdaten() {
+        Produkt produkt = produktMitBestand(3);
+
+        assertThatThrownBy(() -> produkt.aendereStammdaten("x".repeat(201), Geld.ausCent(1)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> produkt.aendereStammdaten("Lampe", Geld.ausCent(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> produkt.aendereStammdaten("Lampe", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(produkt.getTitel()).isEqualTo("Stehlampe");
+        assertThat(produkt.getListenpreis()).isEqualTo(Geld.ausCent(4999));
+    }
 }

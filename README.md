@@ -7,7 +7,7 @@ Bestellsystem für einen Onlineshop: Kunden mit Adressbuch, Produktkatalog mit L
 - **Frontend:** Angular 21 mit aus der OpenAPI generiertem Client
 - **Lokal:** Docker Compose mit PostgreSQL und Mailpit (E-Mail-Test)
 
-Ausgangspunkt war die [Anforderung](docs/00-anforderung.md); Lücken und Widersprüche sind in den [Entscheidungen D-01 bis D-22](docs/01-entscheidungen.md) aufgelöst.
+Ausgangspunkt war die [Anforderung](docs/00-anforderung.md); Lücken und Widersprüche sind in den [Entscheidungen D-01 bis D-23](docs/01-entscheidungen.md) aufgelöst.
 
 ## Voraussetzungen
 
@@ -42,7 +42,7 @@ cd frontend && npm ci && npm start
 | http://localhost:8080/v3/api-docs | OpenAPI zur Laufzeit; exportiert unter [docs/api/openapi.yaml](docs/api/openapi.yaml) |
 | http://localhost:8025 | Mailpit: alle versendeten E-Mails (z. B. Mahnungen) |
 
-Bedienung: [Benutzerhandbuch](docs/benutzerhandbuch.md). Gutscheine gibt es im MVP nur per SQL; das Handbuch enthält ein Beispiel.
+Bedienung: [Benutzerhandbuch](docs/benutzerhandbuch.md).
 
 Stoppen: `docker compose down` (Daten bleiben im Volume `postgres-daten`), `docker compose down -v` löscht sie.
 
@@ -99,14 +99,14 @@ stories/    User Stories mit Akzeptanzkriterien
 | Datei | Inhalt |
 |---|---|
 | [docs/00-anforderung.md](docs/00-anforderung.md) | Originaltext der Anforderung |
-| [docs/01-entscheidungen.md](docs/01-entscheidungen.md) | Fachliche Entscheidungen D-01 bis D-22 (verbindlich) |
+| [docs/01-entscheidungen.md](docs/01-entscheidungen.md) | Fachliche Entscheidungen D-01 bis D-23 (verbindlich) |
 | [docs/02-domaenenmodell.md](docs/02-domaenenmodell.md) | UML-Klassendiagramm, Invarianten I-1 bis I-11, Formeln |
 | [docs/arc42.md](docs/arc42.md) | Architekturüberblick nach arc42: Kontext, Bausteine, Laufzeit, Verteilung, Querschnitt, Risiken |
 | [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md) | Detailreferenz: alle Pakete, Endpunkte, Tabellen, Migrationen, Tests |
 | [docs/adr/](docs/adr/README.md) | Technische Entscheidungen (ADR 0001 bis 0011) mit Bezug zu D-xx |
 | [docs/benutzerhandbuch.md](docs/benutzerhandbuch.md) | Bedienung der wichtigsten Abläufe |
 | [docs/api/openapi.yaml](docs/api/openapi.yaml) | OpenAPI-Spezifikation der REST-API |
-| [docs/fahrplan.md](docs/fahrplan.md) | Umsetzungsschritte 0 bis 9 |
+| [docs/fahrplan.md](docs/fahrplan.md) | Umsetzungsschritte 0 bis 11 |
 | [CLAUDE.md](CLAUDE.md) | Arbeitsregeln für Claude Code (Stack, Struktur, Tests) |
 
 ## Akteure
@@ -121,12 +121,12 @@ stories/    User Stories mit Akzeptanzkriterien
 |---|---|---|
 | E00 | [Domänenkern & Plattform](epics/E00-domaenenkern-plattform.md) | (technisch) |
 | E01 | [Kundenkonto & Adressbuch](epics/E01-kundenkonto-adressbuch.md) | [US-01.1](stories/US-01.1-registrierung-mit-lieferadresse.md), [US-01.2](stories/US-01.2-weitere-adresse-hinzufuegen.md), [US-01.3](stories/US-01.3-adresse-aendern-loeschen.md) |
-| E02 | [Produktkatalog & Lagerbestand](epics/E02-produktkatalog-lagerbestand.md) | [US-02.1](stories/US-02.1-verfuegbarkeit-pruefen.md) |
+| E02 | [Produktkatalog & Lagerbestand](epics/E02-produktkatalog-lagerbestand.md) | [US-02.1](stories/US-02.1-verfuegbarkeit-pruefen.md), [US-02.2](stories/US-02.2-produkt-pflegen.md) |
 | E03 | [Merkliste](epics/E03-merkliste.md) | [US-03.1](stories/US-03.1-produkt-merken.md), [US-03.2](stories/US-03.2-produkt-entfernen.md) |
 | E04 | [Bestellung & Checkout](epics/E04-bestellung-checkout.md) | [US-04.1](stories/US-04.1-bestellung-aufgeben.md), [US-04.2](stories/US-04.2-bestellhistorie-einsehen.md) |
 | E05 | [Zahlungen & Erstattungen](epics/E05-zahlungen-erstattungen.md) | [US-05.1](stories/US-05.1-zahlungsstatus-pruefen.md) |
 | E06 | [Mahnwesen](epics/E06-mahnwesen.md) | [US-06.1](stories/US-06.1-automatische-mahnpruefung.md), [US-06.2](stories/US-06.2-taeglicher-mahnlauf.md) |
 | E07 | [Versand & Sendungsverfolgung](epics/E07-versand-sendungsverfolgung.md) | [US-07.1](stories/US-07.1-versandpaket-anlegen.md), [US-07.2](stories/US-07.2-lieferstatus-aktualisieren.md), [US-07.3](stories/US-07.3-pakete-einer-bestellung-sehen.md) |
-| E08 | [Gutscheine & Aktionen](epics/E08-gutscheine-aktionen.md) | [US-08.1](stories/US-08.1-gutschein-einloesen.md) |
+| E08 | [Gutscheine & Aktionen](epics/E08-gutscheine-aktionen.md) | [US-08.1](stories/US-08.1-gutschein-einloesen.md), [US-08.2](stories/US-08.2-gutschein-anlegen.md) |
 
 Nicht im MVP: Login, Storno, Versandkosten, Steuern, Rechnungsadresse in der Bestellung, Mahnstufen und Gebühren, Gutschein-Nutzungslimits, echte Zahlungsanbieter, Tracking-APIs.

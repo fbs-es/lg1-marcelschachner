@@ -10,8 +10,9 @@ Die Kopfzeile führt zu drei Bereichen:
 
 | Menüpunkt | Inhalt |
 |---|---|
-| **Katalog** | Produkte mit Preis und Verfügbarkeit, Produkt anlegen, in den Warenkorb legen |
+| **Katalog** | Produkte mit Preis und Verfügbarkeit, Produkt anlegen und bearbeiten, in den Warenkorb legen |
 | **Kunden** | Kundenliste, Registrierung; je Kunde Adressbuch, Bestellungen, Merkliste |
+| **Gutscheine** | Gutscheine mit Rabatt, Ablaufdatum und Gültigkeit; Gutschein anlegen |
 | **Warenkorb (n)** | Inhalt des Warenkorbs und Kasse; `n` ist die Stückzahl |
 
 Jede Liste zeigt beim Laden einen Hinweis, bei einem Fehler eine Meldung mit **Erneut versuchen** und bei leerem Ergebnis einen Leerhinweis. Abgelehnte Aktionen erscheinen als Meldung in Klartext, z. B. „Gutschein ist abgelaufen“.
@@ -26,7 +27,13 @@ Beträge werden in Euro angezeigt (`49,99 €`); intern rechnet das System in ga
 
 In der Produktliste ist jedes Produkt als **verfügbar** (Bestand > 0) oder **nicht verfügbar** gekennzeichnet. Titel dürfen sich wiederholen ([D-15](01-entscheidungen.md#d-15-produktdaten-beim-anlegen)).
 
-Den Lagerbestand ändert man im MVP nur über die API: `PUT /api/v1/produkte/{id}/lagerbestand` (Swagger UI, siehe [Abschnitt 9](#9-funktionen-ohne-oberfläche)).
+### Produkt bearbeiten
+
+1. **Katalog** → beim Produkt **Bearbeiten**.
+2. Unter **Stammdaten** Titel und Listenpreis ändern, **Stammdaten speichern**.
+3. Unter **Lagerbestand** den neuen Bestand eintragen (absolut, z. B. nach Wareneingang), **Lagerbestand speichern**.
+
+Ein neuer Preis gilt nur für künftige Bestellungen; bestehende Bestellungen behalten ihren Einzelpreis. Die Merkliste zeigt sofort den neuen Preis ([D-23](01-entscheidungen.md#d-23-produkt-und-gutschein-pflegen)). Hat jemand das Produkt gleichzeitig geändert, erscheint „Versionskonflikt“: Seite neu laden und erneut speichern.
 
 ## 2 Kunde registrieren
 
@@ -148,31 +155,29 @@ Einige Abläufe hat das MVP nur in der API. Sie lassen sich in der **Swagger UI*
 
 | Aufgabe | Endpunkt | Hinweis |
 |---|---|---|
-| Lagerbestand setzen | `PUT /api/v1/produkte/{id}/lagerbestand` | Bestand absolut, ≥ 0 |
 | Zahlung als erfolgreich, fehlgeschlagen oder storniert melden | `PUT /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status` | nur aus *ausstehend*, danach endgültig ([D-19](01-entscheidungen.md#d-19-zahlungsstatus-ändern-und-erstattung-buchen)) |
 | Erstattung buchen | `POST /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen` | höchstens der erstattbare Betrag; entsteht *ausstehend* und wird per Statuswechsel abgeschlossen |
 | Mahnprüfung / Mahnlauf | siehe [Abschnitt 8](#8-mahnwesen) | |
 
-### Gutschein anlegen
 
-Gutscheine haben im MVP weder Oberfläche noch Endpunkt (US-08.2 ist nicht umgesetzt). Zum Testen direkt in der Datenbank anlegen; der Code muss **großgeschrieben** gespeichert werden ([D-17](01-entscheidungen.md#d-17-checkout-ablehnungen-gutscheincode-erste-zahlung)):
+## 10 Gutscheine
 
-```bash
-docker compose exec postgres psql -U bestellsystem -d bestellsystem -c "
-INSERT INTO gutschein (id, code, rabatt_art, prozent, festbetrag_cent, ablaufdatum) VALUES
-  (gen_random_uuid(), 'HERBST10', 'PROZENT', 10.00, NULL, DATE '2026-12-31'),
-  (gen_random_uuid(), 'MINUS5',   'FESTBETRAG', NULL, 500, DATE '2026-12-31'),
-  (gen_random_uuid(), 'ALT',      'PROZENT', 20.00, NULL, DATE '2025-01-01');"
-```
+Menüpunkt **Gutscheine**:
 
-`HERBST10` gibt 10 % auf den Warenwert, `MINUS5` zieht 5,00 € ab, `ALT` ist abgelaufen. Der Gesamtwert wird nie negativ ([D-04](01-entscheidungen.md#d-04-gutschein-art-des-rabatts-und-wirkung)).
+- Die Liste zeigt alle Gutscheine nach Code mit Rabatt, „Gültig bis“ und Status *gültig* oder *abgelaufen*.
+- **Gutschein anlegen**: **Code** (1–50 Buchstaben, Ziffern oder `-`, wird großgeschrieben gespeichert), **Rabattart** *Prozent* oder *Festbetrag*, dazu der Wert (z. B. `10` oder `12,5` bzw. `5,00`), **Gültig bis (einschließlich)**. Dann **Gutschein anlegen**.
+- Abgelehnt wird ein schon vergebener Code (auch in anderer Schreibweise), ein Prozentwert über 100 oder ein Ablaufdatum vor heute ([D-23](01-entscheidungen.md#d-23-produkt-und-gutschein-pflegen)).
+- Ein angelegter Gutschein ist sofort im Checkout einlösbar. Ändern oder löschen lässt er sich im MVP nicht.
 
-## 10 Typischer Durchlauf zum Ausprobieren
+Der Rabatt gilt auf den Warenwert; der Gesamtwert wird nie negativ ([D-04](01-entscheidungen.md#d-04-gutschein-art-des-rabatts-und-wirkung)).
+
+## 11 Typischer Durchlauf zum Ausprobieren
 
 1. Zwei Produkte anlegen, eines mit Lagerbestand 1.
 2. Kunde registrieren, eine zweite Adresse als Rechnungsadresse hinzufügen; versuchen, die Lieferadresse zu löschen (wird abgelehnt).
-3. Gutscheine per SQL anlegen (Abschnitt 9).
-4. Beide Produkte in den Warenkorb, Produkt mit Bestand 1 auf Menge 2 setzen, mit `ALT` bestellen (Gutschein abgelaufen), dann mit `HERBST10` (Bestand reicht nicht), dann Menge 1 (Erfolg).
+3. Unter **Gutscheine** `HERBST10` (10 %, bis Jahresende) anlegen. Einen abgelaufenen Gutschein `ALT` gibt es nur, wenn das Ablaufdatum inzwischen verstrichen ist; sonst den Code `GIBTSNICHT` als unbekannten Gutschein nutzen.
+4. Beide Produkte in den Warenkorb, Produkt mit Bestand 1 auf Menge 2 setzen, mit `GIBTSNICHT` bestellen (Gutschein unbekannt), dann mit `HERBST10` (Bestand reicht nicht), dann Menge 1 (Erfolg).
 5. In der Bestellansicht ein Paket anlegen und über *übergeben* bis *zugestellt* führen.
-6. Zahlung per Swagger auf `ERFOLGREICH` setzen: Bestellansicht zeigt „vollständig bezahlt“, die Historie „bezahlt“.
-7. Für eine unbezahlte Bestellung mit Fälligkeit in der Vergangenheit `POST /api/v1/mahnlaeufe` aufrufen und die E-Mail in Mailpit ansehen. Da die Uhr echt läuft, muss die Fälligkeit dafür in der Datenbank zurückdatiert werden, z. B. `UPDATE bestellung SET faellig_am = DATE '2026-01-01' WHERE bestellnummer = '…';`.
+6. Im Katalog den Preis eines Produkts erhöhen: die Bestellung behält den alten Einzelpreis.
+7. Zahlung per Swagger auf `ERFOLGREICH` setzen: Bestellansicht zeigt „vollständig bezahlt“, die Historie „bezahlt“.
+8. Für eine unbezahlte Bestellung mit Fälligkeit in der Vergangenheit `POST /api/v1/mahnlaeufe` aufrufen und die E-Mail in Mailpit ansehen. Da die Uhr echt läuft, muss die Fälligkeit dafür in der Datenbank zurückdatiert werden, z. B. `UPDATE bestellung SET faellig_am = DATE '2026-01-01' WHERE bestellnummer = '…';`.

@@ -35,7 +35,7 @@ describe('App', () => {
       3,
     );
     await fixture.whenStable();
-    const link = (fixture.nativeElement as HTMLElement).querySelectorAll('nav a')[2];
+    const link = (fixture.nativeElement as HTMLElement).querySelector('nav a[href="/checkout"]')!;
     expect(link.textContent).toContain('Warenkorb (3)');
     expect(link.getAttribute('href')).toBe('/checkout');
   });

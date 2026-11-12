@@ -41,6 +41,13 @@ public class ProduktService {
     }
 
     @Transactional
+    public Produkt aendere(UUID produktId, String titel, Geld listenpreis) {
+        Produkt produkt = finde(produktId);
+        produkt.aendereStammdaten(titel, listenpreis);
+        return produkt;
+    }
+
+    @Transactional
     public Produkt setzeLagerbestand(UUID produktId, int lagerbestand) {
         Produkt produkt = finde(produktId);
         produkt.setzeLagerbestand(lagerbestand);

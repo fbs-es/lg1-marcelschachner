@@ -2,6 +2,8 @@ export * from './adressbuch.service';
 import { AdressbuchService } from './adressbuch.service';
 export * from './bestellungen.service';
 import { BestellungenService } from './bestellungen.service';
+export * from './gutscheine.service';
+import { GutscheineService } from './gutscheine.service';
 export * from './kunden.service';
 import { KundenService } from './kunden.service';
 export * from './mahnwesen.service';
@@ -17,6 +19,7 @@ import { ZahlungenService } from './zahlungen.service';
 export const APIS = [
   AdressbuchService,
   BestellungenService,
+  GutscheineService,
   KundenService,
   MahnwesenService,
   MerklisteService,

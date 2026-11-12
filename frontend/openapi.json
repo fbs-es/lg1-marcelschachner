@@ -16,6 +16,9 @@
     "description" : "Kundenkonto (E01)",
     "name" : "Kunden"
   }, {
+    "description" : "Gutscheine anlegen und ansehen (E08, D-23)",
+    "name" : "Gutscheine"
+  }, {
     "description" : "Liefer- und Rechnungsadressen eines Kunden (E01, D-06)",
     "name" : "Adressbuch"
   }, {
@@ -35,6 +38,123 @@
     "name" : "Versand"
   } ],
   "paths" : {
+    "/api/v1/gutscheine" : {
+      "get" : {
+        "operationId" : "listeGutscheine",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Gutschein"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Alle Gutscheine, nach Code sortiert",
+        "tags" : [ "Gutscheine" ]
+      },
+      "post" : {
+        "operationId" : "legeGutscheinAn",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GutscheinAnlegen"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Gutschein"
+                }
+              }
+            },
+            "description" : "Angelegt, Location zeigt auf den Gutschein"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Ungültiger Code oder Rabattwert (D-04, D-23)"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Code bereits vergeben"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Ablaufdatum liegt vor heute"
+          }
+        },
+        "summary" : "Gutschein anlegen (US-08.2)",
+        "tags" : [ "Gutscheine" ]
+      }
+    },
+    "/api/v1/gutscheine/{gutscheinId}" : {
+      "get" : {
+        "operationId" : "findeGutschein",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "gutscheinId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Gutschein"
+                }
+              }
+            },
+            "description" : "Gefunden"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Gutschein existiert nicht"
+          }
+        },
+        "summary" : "Ein Gutschein",
+        "tags" : [ "Gutscheine" ]
+      }
+    },
     "/api/v1/kunden" : {
       "get" : {
         "operationId" : "listeKunden",
@@ -1370,6 +1490,73 @@
         },
         "summary" : "Ein Produkt mit Verfügbarkeit",
         "tags" : [ "Produkte" ]
+      },
+      "put" : {
+        "description" : "Bestehende Bestellungen behalten ihren Einzelpreis (D-10).",
+        "operationId" : "aendereProdukt",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProduktAendern"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Produkt"
+                }
+              }
+            },
+            "description" : "Geändert"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Ungültige Eingabe (D-15)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Produkt existiert nicht"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Gleichzeitige Änderung (Versionskonflikt)"
+          }
+        },
+        "summary" : "Titel und Listenpreis ändern (US-02.2, D-23)",
+        "tags" : [ "Produkte" ]
       }
     },
     "/api/v1/produkte/{produktId}/lagerbestand" : {
@@ -1766,6 +1953,72 @@
         },
         "required" : [ "cent", "waehrung" ]
       },
+      "Gutschein" : {
+        "type" : "object",
+        "properties" : {
+          "ablaufdatum" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "festbetrag" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "Nur bei FESTBETRAG"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "istGueltig" : {
+            "type" : "boolean",
+            "description" : "Heute laut Uhr nicht nach dem Ablaufdatum (D-04)"
+          },
+          "prozent" : {
+            "type" : "number",
+            "description" : "Nur bei PROZENT"
+          },
+          "rabattArt" : {
+            "type" : "string",
+            "enum" : [ "PROZENT", "FESTBETRAG" ]
+          }
+        },
+        "required" : [ "ablaufdatum", "code", "id", "istGueltig", "rabattArt" ]
+      },
+      "GutscheinAnlegen" : {
+        "type" : "object",
+        "description" : "Neuer Gutschein (D-04, D-23). Genau einer von prozent und festbetrag, passend zur Rabattart.",
+        "properties" : {
+          "ablaufdatum" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Letzter gültiger Tag, nicht vor heute",
+            "example" : "2026-12-31"
+          },
+          "code" : {
+            "type" : "string",
+            "description" : "1–50 Buchstaben, Ziffern und -; wird getrimmt und großgeschrieben",
+            "example" : "HERBST10",
+            "minLength" : 1,
+            "pattern" : "[A-Z0-9-]{1,50}"
+          },
+          "festbetrag" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "Nur bei FESTBETRAG: größer 0"
+          },
+          "prozent" : {
+            "type" : "number",
+            "description" : "Nur bei PROZENT: größer 0, höchstens 100, zwei Nachkommastellen",
+            "example" : 10
+          },
+          "rabattArt" : {
+            "type" : "string",
+            "enum" : [ "PROZENT", "FESTBETRAG" ]
+          }
+        },
+        "required" : [ "ablaufdatum", "code", "rabattArt" ]
+      },
       "Kunde" : {
         "type" : "object",
         "description" : "Kunde mit Adressbuch in Anlagereihenfolge",
@@ -2010,6 +2263,22 @@
           }
         },
         "required" : [ "id", "istVerfuegbar", "lagerbestand", "listenpreis", "titel" ]
+      },
+      "ProduktAendern" : {
+        "type" : "object",
+        "description" : "Neuer Titel und Listenpreis (D-15, D-23)",
+        "properties" : {
+          "listenpreis" : {
+            "$ref" : "#/components/schemas/Geld"
+          },
+          "titel" : {
+            "type" : "string",
+            "example" : "Stehlampe Nova",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "listenpreis", "titel" ]
       },
       "ProduktAnlegen" : {
         "type" : "object",

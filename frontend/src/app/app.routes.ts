@@ -15,6 +15,17 @@ export const routes: Routes = [
       import('./katalog/produkt-anlegen/produkt-anlegen').then((m) => m.ProduktAnlegen),
   },
   {
+    path: 'produkte/:produktId',
+    title: 'Produkt bearbeiten',
+    loadComponent: () =>
+      import('./katalog/produkt-bearbeiten/produkt-bearbeiten').then((m) => m.ProduktBearbeiten),
+  },
+  {
+    path: 'gutscheine',
+    title: 'Gutscheine',
+    loadComponent: () => import('./gutschein/gutscheine/gutscheine').then((m) => m.Gutscheine),
+  },
+  {
     path: 'kunden',
     title: 'Kunden',
     loadComponent: () => import('./kunde/kunden-liste/kunden-liste').then((m) => m.KundenListe),

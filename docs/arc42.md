@@ -9,13 +9,13 @@ Ein Onlineshop stellt sein Bestellsystem neu auf ([Anforderung](00-anforderung.m
 | Fachgebiet | Epic | Kern |
 |---|---|---|
 | Kundenkonto, Adressbuch | E01 | Registrierung mit Lieferadresse, mindestens eine Lieferadresse (I-1) |
-| Katalog, Lagerbestand | E02 | Produkt anlegen, Verfügbarkeit prüfen |
+| Katalog, Lagerbestand | E02 | Produkt anlegen und pflegen, Verfügbarkeit prüfen |
 | Merkliste | E03 | Produkte merken und entfernen, Merkdatum |
 | Bestellung, Checkout | E04 | Bestellung in einer Transaktion, Lieferadress-Snapshot, eingefrorene Preise |
 | Zahlungen | E05 | Bezahlstatus, offener Betrag, Erstattungen |
 | Mahnwesen | E06 | Mahnprüfung je Kunde, täglicher Mahnlauf, E-Mail |
 | Versand | E07 | Pakete mit Sendungsnummer und Lieferstatus |
-| Gutscheine | E08 | Prozent- oder Festbetragsrabatt, eingefroren in der Bestellung |
+| Gutscheine | E08 | Gutschein anlegen; Prozent- oder Festbetragsrabatt, eingefroren in der Bestellung |
 
 ### Qualitätsziele
 
@@ -113,7 +113,7 @@ Jedes Paket: `api` (Controller, DTO-Records) → `application` (Services, Transa
 | `gemeinsam` | Wertobjekte, Fehlerbehandlung, Uhr, Bestellnummer, Benachrichtigungs-Port | `Geld`, `Anschrift`, `ZentraleFehlerbehandlung`, `BestellnummernGenerator`, `Benachrichtigungsversand` |
 | `kunde` | Registrierung, Adressbuch, Mahnprüfung je Kunde | `Kunde` (Wurzel) mit `Adresse`, `Email` |
 | `katalog` | Produkte, Bestand, Verfügbarkeit | `Produkt` (Wurzel, `@Version`) |
-| `gutschein` | Code, Gültigkeit, Rabattberechnung | `Gutschein` |
+| `gutschein` | Anlegen, Code, Gültigkeit, Rabattberechnung | `Gutschein` |
 | `bestellung` | Checkout, Bestellansicht, Historie; Wurzel für Zahlungen, Mahnungen, Pakete | `Bestellung` (Wurzel) mit `Bestellposition` |
 | `zahlung` | Buchungen und Statuswechsel (Teil der Bestellung) | `Zahlung` |
 | `mahnwesen` | Mahnprüfung, Mahnlauf, Mahnschreiben | `Mahnung` (Teil der Bestellung), `MahnService`, `Mahnlauf` |
@@ -126,11 +126,12 @@ Abhängigkeiten zwischen Fachpaketen laufen über `application`-Services (z. B. 
 
 | Ordner | Seiten / Bausteine |
 |---|---|
-| `katalog` | Produktliste mit Verfügbarkeit, Produkt anlegen |
+| `katalog` | Produktliste mit Verfügbarkeit, Produkt anlegen und bearbeiten |
 | `kunde` | Kundenliste, Registrierung, Kundenansicht mit Adressbuch |
 | `bestellung` | Warenkorb (nur im Browser), Checkout, Bestellansicht, Bestellhistorie |
 | `merkliste` | Merkliste eines Kunden |
 | `versand` | Abschnitt „Versand“ in der Bestellansicht |
+| `gutschein` | Gutscheinliste und Gutschein anlegen |
 | `gemeinsam` | `GeldPipe`, Euro-Eingabe, `problemMeldung` |
 | `api` | aus [OpenAPI](api/openapi.yaml) generiert (ADR 0002) |
 
@@ -307,7 +308,7 @@ erstattbar             = bezahlteSumme − Σ AUSSTEHEND-ERSTATTUNG
 
 ## 9 Architekturentscheidungen
 
-Technische Entscheidungen: [docs/adr/](adr/README.md) (ADR 0001 bis 0011, mit Zuordnung zu den fachlichen Entscheidungen). Fachliche Entscheidungen: [01-entscheidungen.md](01-entscheidungen.md) ([D-01](01-entscheidungen.md#d-01-gesamtwert-gespeichert-oder-berechnet) bis [D-22](01-entscheidungen.md#d-22-versandpakete-im-detail-übergänge-dienstleister-zeitpunkte)).
+Technische Entscheidungen: [docs/adr/](adr/README.md) (ADR 0001 bis 0011, mit Zuordnung zu den fachlichen Entscheidungen). Fachliche Entscheidungen: [01-entscheidungen.md](01-entscheidungen.md) ([D-01](01-entscheidungen.md#d-01-gesamtwert-gespeichert-oder-berechnet) bis [D-23](01-entscheidungen.md#d-23-produkt-und-gutschein-pflegen)).
 
 ## 10 Qualitätsszenarien
 
@@ -329,10 +330,10 @@ Technische Entscheidungen: [docs/adr/](adr/README.md) (ADR 0001 bis 0011, mit Zu
 | Mahnlauf auf mehreren Instanzen | doppelte Läufe; Prüfungen je Kunde sind zwar per Sperre serialisiert, aber doppelte E-Mails bei Commit-Fehlern möglich | ShedLock o. ä., oder Lauf nur auf einer Instanz ([D-20](01-entscheidungen.md#d-20-mahnprüfung-im-detail-und-täglicher-mahnlauf)) |
 | E-Mail vor dem Commit | bei Commit-Fehler doppelte Mahn-E-Mail (mindestens einmal) | Outbox-Muster, falls Doppelte stören (ADR 0011) |
 | Pessimistische Sperre im Checkout | beliebte Produkte serialisieren Checkouts | bei Lastproblemen Bestandsreservierung oder atomares `UPDATE … WHERE lagerbestand >= menge` |
-| Keine Gutschein- und Bestandspflege-Oberfläche | Gutscheine nur per SQL, Bestand nur per API | US-08.2, US-02.2 umsetzen |
 | Warenkorb nur im Speicher | Neuladen leert ihn ([D-18](01-entscheidungen.md#d-18-checkout-im-frontend-und-bestellhistorie)) | lokale Speicherung oder serverseitiger Warenkorb |
 | Kein Storno | Bestand wird nie zurückgebucht ([D-09](01-entscheidungen.md#d-09-lagerbestand-und-verfügbarkeit)) | eigenes Epic |
 | Paketgrenzen nur per Konvention | Schichtverletzungen unbemerkt | ArchUnit-Tests oder Spring Modulith (ADR 0004) |
+| Gutscheine nicht änderbar | Tippfehler im Ablaufdatum nur durch neuen Code behebbar | Gutschein ändern als eigene Story |
 | Zahlungsanbieter nur simuliert | Statuswechsel per API von Hand | Anbindung mit Webhook auf den bestehenden Statuswechsel |
 
 ## 12 Glossar

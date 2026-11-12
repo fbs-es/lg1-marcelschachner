@@ -80,6 +80,39 @@ class ProduktController {
         return ProduktDto.von(service.finde(produktId));
     }
 
+    @PutMapping("/{produktId}")
+    @Operation(
+            operationId = "aendereProdukt",
+            summary = "Titel und Listenpreis ändern (US-02.2, D-23)",
+            description = "Bestehende Bestellungen behalten ihren Einzelpreis (D-10).")
+    @ApiResponse(responseCode = "200", description = "Geändert")
+    @ApiResponse(
+            responseCode = "400",
+            description = "Ungültige Eingabe (D-15)",
+            content =
+                    @Content(
+                            mediaType = PROBLEM_JSON,
+                            schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(
+            responseCode = "404",
+            description = "Produkt existiert nicht",
+            content =
+                    @Content(
+                            mediaType = PROBLEM_JSON,
+                            schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Gleichzeitige Änderung (Versionskonflikt)",
+            content =
+                    @Content(
+                            mediaType = PROBLEM_JSON,
+                            schema = @Schema(implementation = ProblemDetail.class)))
+    ProduktDto aendere(
+            @PathVariable UUID produktId, @Valid @RequestBody ProduktAendernDto eingabe) {
+        return ProduktDto.von(
+                service.aendere(produktId, eingabe.titel(), eingabe.listenpreis().alsGeld()));
+    }
+
     @PutMapping("/{produktId}/lagerbestand")
     @Operation(
             operationId = "setzeLagerbestand",

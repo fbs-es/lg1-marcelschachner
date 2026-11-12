@@ -102,4 +102,15 @@ describe('ProduktListe', () => {
     expect(TestBed.inject(Warenkorb).mengeVon('1')).toBe(2);
     expect(zeilen[0].textContent).toContain('2 im Warenkorb');
   });
+
+  it('US-02.2 AK7: verlinkt je Produkt auf die Bearbeitung', async () => {
+    http.expectOne('/api/v1/produkte').flush([LAMPE]);
+    await fixture.whenStable();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>(
+      'a[aria-label="Stehlampe bearbeiten"]',
+    )!;
+    expect(link.textContent).toContain('Bearbeiten');
+    expect(link.getAttribute('href')).toBe('/produkte/1');
+  });
 });

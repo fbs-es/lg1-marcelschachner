@@ -62,6 +62,14 @@ public class Produkt {
         lagerbestand -= menge;
     }
 
+    /** Neue Preise gelten nur für künftige Bestellungen (D-10, D-23). */
+    public void aendereStammdaten(String titel, Geld listenpreis) {
+        String neuerTitel = pruefeTitel(titel);
+        Geld neuerListenpreis = pruefeListenpreis(listenpreis);
+        this.titel = neuerTitel;
+        this.listenpreis = neuerListenpreis;
+    }
+
     public void setzeLagerbestand(int lagerbestand) {
         this.lagerbestand = pruefeLagerbestand(lagerbestand);
     }

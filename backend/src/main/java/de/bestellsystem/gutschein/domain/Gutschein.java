@@ -1,5 +1,6 @@
 package de.bestellsystem.gutschein.domain;
 
+import de.bestellsystem.gemeinsam.domain.FachlicheAblehnungException;
 import de.bestellsystem.gemeinsam.domain.Geld;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /** Aktionscode mit prozentualem oder festem Rabatt auf den Warenwert (D-04, D-17). */
 @Entity
@@ -21,6 +23,11 @@ public class Gutschein {
     public static final int CODE_MAXIMALE_LAENGE = 50;
 
     private static final BigDecimal HUNDERT = BigDecimal.valueOf(100);
+
+    /** Erlaubte Zeichen neuer Codes nach dem Normalisieren (D-23). */
+    public static final String CODE_MUSTER = "[A-Z0-9-]{1," + CODE_MAXIMALE_LAENGE + "}";
+
+    private static final Pattern NEUER_CODE = Pattern.compile(CODE_MUSTER);
 
     @Id private UUID id;
 
@@ -74,6 +81,49 @@ public class Gutschein {
         return new Gutschein(code, RabattArt.FESTBETRAG, null, festbetrag.cent(), ablaufdatum);
     }
 
+    /**
+     * Legt einen Gutschein über die Pflege an (US-08.2, D-23). Genau einer von {@code prozent} und
+     * {@code festbetrag} passt zur Rabattart; ein Ablaufdatum vor {@code heute} ist eine fachliche
+     * Ablehnung.
+     */
+    public static Gutschein legeAn(
+            String code,
+            RabattArt rabattArt,
+            BigDecimal prozent,
+            Geld festbetrag,
+            LocalDate ablaufdatum,
+            LocalDate heute) {
+        String normalisiert = normalisiere(code);
+        if (!NEUER_CODE.matcher(normalisiert).matches()) {
+            throw new IllegalArgumentException("code darf nur Buchstaben, Ziffern und - enthalten");
+        }
+        if (rabattArt == null) {
+            throw new IllegalArgumentException("rabattArt ist erforderlich");
+        }
+        Gutschein gutschein =
+                switch (rabattArt) {
+                    case PROZENT -> {
+                        if (festbetrag != null) {
+                            throw new IllegalArgumentException(
+                                    "festbetrag passt nicht zur Rabattart PROZENT");
+                        }
+                        yield prozent(normalisiert, prozent, ablaufdatum);
+                    }
+                    case FESTBETRAG -> {
+                        if (prozent != null) {
+                            throw new IllegalArgumentException(
+                                    "prozent passt nicht zur Rabattart FESTBETRAG");
+                        }
+                        yield festbetrag(normalisiert, festbetrag, ablaufdatum);
+                    }
+                };
+        if (!gutschein.istGueltigAm(heute)) {
+            throw new FachlicheAblehnungException(
+                    "Das Ablaufdatum %s liegt in der Vergangenheit.".formatted(ablaufdatum));
+        }
+        return gutschein;
+    }
+
     /** Codes werden ohne Beachtung der Groß-/Kleinschreibung verglichen (D-04, D-17). */
     public static String normalisiere(String code) {
         if (code == null || code.isBlank()) {
@@ -112,6 +162,16 @@ public class Gutschein {
 
     public RabattArt getRabattArt() {
         return rabattArt;
+    }
+
+    /** Nur bei {@link RabattArt#PROZENT}, sonst {@code null}. */
+    public BigDecimal getProzent() {
+        return prozent;
+    }
+
+    /** Nur bei {@link RabattArt#FESTBETRAG}, sonst {@code null}. */
+    public Geld getFestbetrag() {
+        return festbetragCent == null ? null : Geld.ausCent(festbetragCent);
     }
 
     public LocalDate getAblaufdatum() {

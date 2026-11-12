@@ -12,6 +12,7 @@ import { Warenkorb } from './bestellung/warenkorb';
       <nav aria-label="Hauptnavigation">
         <a routerLink="/produkte" routerLinkActive="aktiv">Katalog</a>
         <a routerLink="/kunden" routerLinkActive="aktiv">Kunden</a>
+        <a routerLink="/gutscheine" routerLinkActive="aktiv">Gutscheine</a>
         <a routerLink="/checkout" routerLinkActive="aktiv"
           >Warenkorb ({{ warenkorb.stueckzahl() }})</a
         >

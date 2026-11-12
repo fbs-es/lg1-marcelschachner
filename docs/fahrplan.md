@@ -185,7 +185,7 @@ Zuerst US-07.1 bis US-07.3 mit mir ausformulieren und in stories/ ablegen, dann 
 
 ---
 
-## [ ] 9 Dokumentation
+## [x] 9 Dokumentation (2026-11-12, b8ff055)
 
 **Werkzeug:** normaler Auftrag (kein feature-dev)
 **Eingaben:** gesamter Code, `docs/`

@@ -1,6 +1,6 @@
 ---
 name: naechster-schritt
-description: Arbeitet den obersten offenen Schritt aus docs/fahrplan.md ab (mit feature-dev oder als goal-Vorschlag), prüft "Fertig wenn", hakt ab und committet. Verwenden bei "nächster Schritt", "weiter im Fahrplan", "naechster-schritt" oder /naechster-schritt.
+description: Arbeitet den obersten offenen Schritt aus docs/fahrplan.md ab (mit feature-dev oder als goal-Vorschlag), prüft "Fertig wenn", committet immer (auch Teilstand, nie rot) und hakt ab. Verwenden bei "nächster Schritt", "weiter im Fahrplan", "naechster-schritt" oder /naechster-schritt.
 ---
 
 # Nächster Schritt
@@ -18,9 +18,12 @@ description: Arbeitet den obersten offenen Schritt aus docs/fahrplan.md ab (mit 
 
 5. **Fertig-wenn prüfen.** Jeden Punkt unter "Fertig wenn" einzeln nachweisen (Befehl ausführen, Ausgabe nennen). Ein Punkt nicht erfüllt → nicht abhaken, offenen Rest melden.
 
-6. **Abschließen.**
+6. **Immer committen.** Jede Sitzung endet mit einem Commit, ohne Rückfrage, auch wenn der Schritt nicht vollständig ist.
+   - Vorher `cd backend && ./gradlew build` (und ab Schritt 2 `cd frontend && npm test`) ausführen. Rot → erst reparieren; nicht reparierbar → Nutzer fragen, nie rot committen.
    - `docs/ARCHITEKTUR.md` aktualisieren.
-   - Im Fahrplan `## [ ]` → `## [x]` und hinter den Titel `(JJJJ-MM-TT, <kurzer Commit-Hash>)` setzen.
-   - Geänderte Dateien gezielt stagen (nie `git add -A`), committen nach `CLAUDE.md` → Git.
+   - Geänderte Dateien gezielt stagen (nie `git add -A`), `git status` prüfen: keine Exporte, Logs, `.env` oder Build-Artefakte.
+   - Arbeit committen nach `CLAUDE.md` → Git. Schritt unvollständig → Betreff beschreibt den erreichten Stand, offene "Fertig wenn"-Punkte in den Commit-Body.
+   - Nur wenn alle "Fertig wenn"-Punkte erfüllt: im Fahrplan `## [ ]` → `## [x]`, hinter den Titel `(JJJJ-MM-TT, <kurzer Hash des Arbeits-Commits>)` setzen und als eigenen Commit `Hake Schritt <n> im Fahrplan ab` committen.
+   - Zwischenänderungen auf Zuruf (z. B. Werkzeugwechsel) ebenfalls als eigener Commit, sobald grün.
 
-7. **Melden.** Was gebaut wurde, Testergebnis, offene Punkte, nächster Schritt.
+7. **Melden.** Was gebaut wurde, Testergebnis, Commit-Hashes, offene Punkte, nächster Schritt.

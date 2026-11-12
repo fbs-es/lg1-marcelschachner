@@ -10,6 +10,8 @@ export * from './merkliste.service';
 import { MerklisteService } from './merkliste.service';
 export * from './produkte.service';
 import { ProdukteService } from './produkte.service';
+export * from './versand.service';
+import { VersandService } from './versand.service';
 export * from './zahlungen.service';
 import { ZahlungenService } from './zahlungen.service';
 export const APIS = [
@@ -19,5 +21,6 @@ export const APIS = [
   MahnwesenService,
   MerklisteService,
   ProdukteService,
+  VersandService,
   ZahlungenService,
 ];

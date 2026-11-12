@@ -7,12 +7,17 @@ import de.bestellsystem.gemeinsam.application.BestellnummernGenerator;
 import de.bestellsystem.gemeinsam.application.FachlicheEinstellungen;
 import de.bestellsystem.gemeinsam.domain.Anschrift;
 import de.bestellsystem.gemeinsam.domain.Geld;
+import de.bestellsystem.gemeinsam.domain.KonfliktException;
 import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
 import de.bestellsystem.gutschein.application.GutscheinService;
 import de.bestellsystem.gutschein.domain.Gutschein;
 import de.bestellsystem.katalog.application.ProduktService;
 import de.bestellsystem.katalog.domain.Produkt;
 import de.bestellsystem.kunde.application.KundeService;
+import de.bestellsystem.versand.domain.Lieferstatus;
+import de.bestellsystem.versand.domain.Logistikdienstleister;
+import de.bestellsystem.versand.domain.Versandpaket;
+import de.bestellsystem.versand.persistence.VersandpaketRepository;
 import de.bestellsystem.zahlung.domain.Transaktionsstatus;
 import de.bestellsystem.zahlung.domain.Zahlung;
 import de.bestellsystem.zahlung.domain.Zahlungsart;
@@ -26,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class BestellungService {
 
     private final BestellungRepository repository;
+    private final VersandpaketRepository versandpakete;
     private final KundeService kundeService;
     private final ProduktService produktService;
     private final GutscheinService gutscheinService;
@@ -44,6 +51,7 @@ public class BestellungService {
 
     BestellungService(
             BestellungRepository repository,
+            VersandpaketRepository versandpakete,
             KundeService kundeService,
             ProduktService produktService,
             GutscheinService gutscheinService,
@@ -52,6 +60,7 @@ public class BestellungService {
             Clock uhr,
             EntityManager entityManager) {
         this.repository = repository;
+        this.versandpakete = versandpakete;
         this.kundeService = kundeService;
         this.produktService = produktService;
         this.gutscheinService = gutscheinService;
@@ -100,13 +109,16 @@ public class BestellungService {
         return repository.save(bestellung);
     }
 
-    /** Lädt Bestellung mit Positionen, Produkten, Gutschein und Zahlungen in zwei Abfragen. */
+    /**
+     * Lädt Bestellung mit Positionen, Produkten, Gutschein, Zahlungen und Paketen in drei Abfragen.
+     */
     public Bestellung finde(UUID kundenId, String bestellnummer) {
         Bestellung bestellung =
                 repository
                         .findeMitPositionen(kundenId, bestellnummer)
                         .orElseThrow(() -> nichtGefunden(bestellnummer));
         repository.findeZahlungen(bestellnummer);
+        repository.findePakete(bestellnummer);
         return bestellung;
     }
 
@@ -164,15 +176,72 @@ public class BestellungService {
         return zumBuchen(kundenId, bestellnummer).bucheErstattung(zahlungsart, betrag);
     }
 
-    // Erhöht die Version beim Festschreiben, auch wenn sich nur der Status einer Zahlung ändert;
-    // so scheitert eine gleichzeitige zweite Buchung auf derselben Bestellung (D-19).
-    private Bestellung zumBuchen(UUID kundenId, String bestellnummer) {
+    /** Ein Paket der Bestellung des Kunden; 404 bei fremder Bestellung oder fremdem Paket. */
+    public Versandpaket paket(UUID kundenId, String bestellnummer, UUID paketId) {
+        return repository
+                .findeMitPaketen(kundenId, bestellnummer)
+                .orElseThrow(() -> nichtGefunden(bestellnummer))
+                .paket(paketId);
+    }
+
+    /**
+     * Neues Paket mit Status ANGELEGT (US-07.1); 409, wenn die Sendungsnummer beim Dienstleister
+     * schon vergeben ist (I-11).
+     */
+    @Transactional
+    public Versandpaket legePaketAn(
+            UUID kundenId,
+            String bestellnummer,
+            Logistikdienstleister dienstleister,
+            String sendungsnummer) {
         Bestellung bestellung =
+                gesperrt(
+                        repository
+                                .findeMitPaketen(kundenId, bestellnummer)
+                                .orElseThrow(() -> nichtGefunden(bestellnummer)));
+        String normalisiert = Versandpaket.normalisiere(sendungsnummer);
+        if (versandpakete.existsByDienstleisterAndSendungsnummer(dienstleister, normalisiert)) {
+            throw sendungsnummerVergeben(dienstleister, normalisiert);
+        }
+        Versandpaket paket = bestellung.legePaketAn(dienstleister, normalisiert, Instant.now(uhr));
+        try {
+            repository.flush();
+        } catch (DataIntegrityViolationException gleichzeitigAngelegt) {
+            throw sendungsnummerVergeben(dienstleister, normalisiert);
+        }
+        return paket;
+    }
+
+    /** Lieferstatus fortschreiben (US-07.2, D-22); Zeitpunkt aus der Uhr. */
+    @Transactional
+    public Versandpaket aendereLieferstatus(
+            UUID kundenId, String bestellnummer, UUID paketId, Lieferstatus status) {
+        return gesperrt(
+                        repository
+                                .findeMitPaketen(kundenId, bestellnummer)
+                                .orElseThrow(() -> nichtGefunden(bestellnummer)))
+                .aendereLieferstatus(paketId, status, Instant.now(uhr));
+    }
+
+    private Bestellung zumBuchen(UUID kundenId, String bestellnummer) {
+        return gesperrt(
                 repository
                         .findeMitZahlungen(kundenId, bestellnummer)
-                        .orElseThrow(() -> nichtGefunden(bestellnummer));
+                        .orElseThrow(() -> nichtGefunden(bestellnummer)));
+    }
+
+    // Erhöht die Version beim Festschreiben, auch wenn sich nur eine Zahlung oder ein Paket ändert;
+    // so scheitert eine gleichzeitige zweite Änderung derselben Bestellung (D-19).
+    private Bestellung gesperrt(Bestellung bestellung) {
         entityManager.lock(bestellung, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
         return bestellung;
+    }
+
+    private static KonfliktException sendungsnummerVergeben(
+            Logistikdienstleister dienstleister, String sendungsnummer) {
+        return new KonfliktException(
+                "Sendungsnummer %s ist bei %s schon vergeben."
+                        .formatted(sendungsnummer, dienstleister));
     }
 
     private static NichtGefundenException nichtGefunden(String bestellnummer) {

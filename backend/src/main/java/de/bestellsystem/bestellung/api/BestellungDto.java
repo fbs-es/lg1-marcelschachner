@@ -4,6 +4,7 @@ import de.bestellsystem.bestellung.domain.Bestellung;
 import de.bestellsystem.gemeinsam.api.AnschriftDto;
 import de.bestellsystem.gemeinsam.api.GeldDto;
 import de.bestellsystem.gutschein.domain.Gutschein;
+import de.bestellsystem.versand.api.VersandpaketDto;
 import de.bestellsystem.zahlung.api.ZahlungDto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
@@ -25,7 +26,8 @@ import java.util.UUID;
             "zahlungen",
             "bezahlteSumme",
             "offenerBetrag",
-            "istVollstaendigBezahlt"
+            "istVollstaendigBezahlt",
+            "pakete"
         })
 public record BestellungDto(
         @Schema(example = "B-2026-000123") String bestellnummer,
@@ -43,7 +45,11 @@ public record BestellungDto(
         @Schema(description = "Σ erfolgreiche Zahlungen − Σ erfolgreiche Erstattungen (D-05)")
                 GeldDto bezahlteSumme,
         @Schema(description = "max(0, gesamtwert − bezahlteSumme) (D-05)") GeldDto offenerBetrag,
-        @Schema(description = "bezahlteSumme ≥ gesamtwert (D-05)") boolean istVollstaendigBezahlt) {
+        @Schema(description = "bezahlteSumme ≥ gesamtwert (D-05)") boolean istVollstaendigBezahlt,
+        @Schema(
+                        description =
+                                "Versandpakete in Anlagereihenfolge; leer, solange nichts versandt ist")
+                List<VersandpaketDto> pakete) {
 
     static BestellungDto von(Bestellung bestellung) {
         return new BestellungDto(
@@ -60,6 +66,7 @@ public record BestellungDto(
                 bestellung.getZahlungen().stream().map(ZahlungDto::von).toList(),
                 GeldDto.von(bestellung.berechneBezahlteSumme()),
                 GeldDto.von(bestellung.berechneOffenenBetrag()),
-                bestellung.istVollstaendigBezahlt());
+                bestellung.istVollstaendigBezahlt(),
+                bestellung.getPakete().stream().map(VersandpaketDto::von).toList());
     }
 }

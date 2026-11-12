@@ -1,0 +1,75 @@
+<h2>Versand</h2>
+
+@if (aktionsfehler()) {
+  <p class="hinweis fehler" role="alert">{{ aktionsfehler() }}</p>
+}
+
+@if (liste().length === 0) {
+  <p class="hinweis keine-pakete">Noch kein Paket versandt.</p>
+} @else {
+  <table class="pakete">
+    <thead>
+      <tr>
+        <th scope="col">Dienstleister</th>
+        <th scope="col">Sendungsnummer</th>
+        <th scope="col">Status</th>
+        <th scope="col">Angelegt</th>
+        <th scope="col">Letzte Änderung</th>
+        <th scope="col"><span class="unsichtbar">Status ändern</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (paket of liste(); track paket.id) {
+        <tr>
+          <td>{{ dienstleisterName(paket.dienstleister) }}</td>
+          <td class="sendungsnummer">{{ paket.sendungsnummer }}</td>
+          <td class="lieferstatus">{{ lieferstatusName(paket.lieferstatus) }}</td>
+          <td>{{ paket.angelegtAm | date: 'dd.MM.yyyy HH:mm' }}</td>
+          <td>{{ paket.statusGeaendertAm | date: 'dd.MM.yyyy HH:mm' }}</td>
+          <td>
+            @if (paket.erlaubteFolgestatus.length > 0) {
+              <label class="unsichtbar" [for]="'status-' + paket.id">
+                Neuer Status für {{ paket.sendungsnummer }}
+              </label>
+              <select #auswahl [id]="'status-' + paket.id">
+                <option value="">Neuer Status …</option>
+                @for (status of paket.erlaubteFolgestatus; track status) {
+                  <option [value]="status">{{ lieferstatusName(status) }}</option>
+                }
+              </select>
+              <button
+                type="button"
+                [disabled]="sendet()"
+                (click)="setzeStatus(paket, auswahl.value)"
+              >
+                Status setzen
+              </button>
+            } @else {
+              <span class="endzustand">abgeschlossen</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+<h3>Paket anlegen</h3>
+<form class="paket-anlegen" [formGroup]="formular" (ngSubmit)="anlegen()" novalidate>
+  <label for="dienstleister">Dienstleister</label>
+  <select id="dienstleister" formControlName="dienstleister">
+    <option value="" disabled>Bitte wählen …</option>
+    @for (eintrag of DIENSTLEISTER; track eintrag.wert) {
+      <option [value]="eintrag.wert">{{ eintrag.name }}</option>
+    }
+  </select>
+  <label for="sendungsnummer">Sendungsnummer</label>
+  <input id="sendungsnummer" type="text" formControlName="sendungsnummer" maxlength="50" />
+  <button type="submit" [disabled]="sendet()">Paket anlegen</button>
+</form>
+@if (dienstleister.invalid && dienstleister.touched) {
+  <p class="feldfehler">Bitte einen Dienstleister wählen.</p>
+}
+@if (sendungsnummer.invalid && sendungsnummer.touched) {
+  <p class="feldfehler">Bitte eine Sendungsnummer eingeben.</p>
+}

@@ -30,6 +30,9 @@
   }, {
     "description" : "Gemerkte Produkte eines Kunden (E03, D-07, D-21)",
     "name" : "Merkliste"
+  }, {
+    "description" : "Versandpakete und Lieferstatus (E07, D-12, D-22)",
+    "name" : "Versand"
   } ],
   "paths" : {
     "/api/v1/kunden" : {
@@ -640,6 +643,229 @@
         },
         "summary" : "Erstattung buchen (D-19)",
         "tags" : [ "Zahlungen" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete" : {
+      "post" : {
+        "description" : "Entsteht mit Lieferstatus ANGELEGT. Sendungsnummer eindeutig je Dienstleister über alle Bestellungen (I-11).",
+        "operationId" : "legePaketAn",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PaketAnlegen"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Versandpaket"
+                }
+              }
+            },
+            "description" : "Angelegt, Location zeigt auf das Paket"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Dienstleister fehlt oder unbekannt, Sendungsnummer ungültig"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung existiert nicht oder gehört einem anderen Kunden"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Sendungsnummer beim Dienstleister vergeben oder Versionskonflikt"
+          }
+        },
+        "summary" : "Versandpaket anlegen (US-07.1)",
+        "tags" : [ "Versand" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}" : {
+      "get" : {
+        "operationId" : "findePaket",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "paketId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Versandpaket"
+                }
+              }
+            },
+            "description" : "Gefunden"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung oder Paket existiert nicht oder gehört nicht dazu"
+          }
+        },
+        "summary" : "Ein Versandpaket der Bestellung (US-07.3)",
+        "tags" : [ "Versand" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}/status" : {
+      "put" : {
+        "description" : "Nur vorwärts, Stufen dürfen übersprungen werden; RETOURE und VERLOREN erst ab UEBERGEBEN; ZUGESTELLT, RETOURE, VERLOREN sind Endzustände (D-22).",
+        "operationId" : "aendereLieferstatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "paketId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LieferstatusAenderung"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Versandpaket"
+                }
+              }
+            },
+            "description" : "Geändert"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Status fehlt oder ist unbekannt"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung oder Paket existiert nicht oder gehört nicht dazu"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Versionskonflikt durch gleichzeitige Änderung"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Übergang nicht erlaubt"
+          }
+        },
+        "summary" : "Lieferstatus fortschreiben (US-07.2)",
+        "tags" : [ "Versand" ]
       }
     },
     "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}" : {
@@ -1412,6 +1638,13 @@
             "$ref" : "#/components/schemas/Geld",
             "description" : "max(0, gesamtwert − bezahlteSumme) (D-05)"
           },
+          "pakete" : {
+            "type" : "array",
+            "description" : "Versandpakete in Anlagereihenfolge; leer, solange nichts versandt ist",
+            "items" : {
+              "$ref" : "#/components/schemas/Versandpaket"
+            }
+          },
           "positionen" : {
             "type" : "array",
             "items" : {
@@ -1433,7 +1666,7 @@
             }
           }
         },
-        "required" : [ "bestelldatum", "bestellnummer", "bezahlteSumme", "faelligAm", "gesamtwert", "istVollstaendigBezahlt", "kundenId", "lieferanschrift", "offenerBetrag", "positionen", "rabattBetrag", "warenwert", "zahlungen" ]
+        "required" : [ "bestelldatum", "bestellnummer", "bezahlteSumme", "faelligAm", "gesamtwert", "istVollstaendigBezahlt", "kundenId", "lieferanschrift", "offenerBetrag", "pakete", "positionen", "rabattBetrag", "warenwert", "zahlungen" ]
       },
       "BestellungAufgeben" : {
         "type" : "object",
@@ -1592,6 +1825,18 @@
         },
         "required" : [ "lagerbestand" ]
       },
+      "LieferstatusAenderung" : {
+        "type" : "object",
+        "description" : "Neuer Lieferstatus eines Pakets; nur erlaubte Folgestatus (D-22)",
+        "properties" : {
+          "lieferstatus" : {
+            "type" : "string",
+            "enum" : [ "ANGELEGT", "UEBERGEBEN", "IN_ZUSTELLUNG", "ZUGESTELLT", "RETOURE", "VERLOREN" ],
+            "example" : "UEBERGEBEN"
+          }
+        },
+        "required" : [ "lieferstatus" ]
+      },
       "Mahnlauf" : {
         "type" : "object",
         "description" : "Ergebnis eines Mahnlaufs über alle Kunden (US-06.2)",
@@ -1679,6 +1924,24 @@
           }
         },
         "required" : [ "hinzugefuegtAm", "istVerfuegbar", "listenpreis", "produktId", "titel" ]
+      },
+      "PaketAnlegen" : {
+        "type" : "object",
+        "description" : "Neues Versandpaket; entsteht mit Lieferstatus ANGELEGT (US-07.1)",
+        "properties" : {
+          "dienstleister" : {
+            "type" : "string",
+            "enum" : [ "DHL", "DPD", "GLS", "HERMES", "UPS" ],
+            "example" : "DHL"
+          },
+          "sendungsnummer" : {
+            "type" : "string",
+            "description" : "1–50 Buchstaben oder Ziffern; wird getrimmt und großgeschrieben (D-22)",
+            "example" : "00340434161094042557",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "dienstleister", "sendungsnummer" ]
       },
       "Positionswunsch" : {
         "type" : "object",
@@ -1833,6 +2096,46 @@
           }
         },
         "required" : [ "istVerfuegbar", "menge", "produktId" ]
+      },
+      "Versandpaket" : {
+        "type" : "object",
+        "properties" : {
+          "angelegtAm" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "dienstleister" : {
+            "type" : "string",
+            "enum" : [ "DHL", "DPD", "GLS", "HERMES", "UPS" ]
+          },
+          "erlaubteFolgestatus" : {
+            "type" : "array",
+            "description" : "Status, in die das Paket wechseln darf; leer im Endzustand (D-22)",
+            "items" : {
+              "type" : "string",
+              "enum" : [ "ANGELEGT", "UEBERGEBEN", "IN_ZUSTELLUNG", "ZUGESTELLT", "RETOURE", "VERLOREN" ]
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lieferstatus" : {
+            "type" : "string",
+            "enum" : [ "ANGELEGT", "UEBERGEBEN", "IN_ZUSTELLUNG", "ZUGESTELLT", "RETOURE", "VERLOREN" ]
+          },
+          "sendungsnummer" : {
+            "type" : "string",
+            "description" : "Getrimmt und großgeschrieben (D-22)",
+            "example" : "AB123DE"
+          },
+          "statusGeaendertAm" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "Zeitpunkt des letzten Statuswechsels, anfangs gleich angelegtAm"
+          }
+        },
+        "required" : [ "angelegtAm", "dienstleister", "erlaubteFolgestatus", "id", "lieferstatus", "sendungsnummer", "statusGeaendertAm" ]
       },
       "Zahlung" : {
         "type" : "object",

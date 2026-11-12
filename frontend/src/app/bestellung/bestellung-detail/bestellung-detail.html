@@ -95,6 +95,12 @@
           </li>
         }
       </ul>
+
+      <app-versandpakete
+        [kundenId]="kundenId()"
+        [bestellnummer]="bestellung.bestellnummer"
+        [pakete]="bestellung.pakete"
+      />
     }
   }
 }

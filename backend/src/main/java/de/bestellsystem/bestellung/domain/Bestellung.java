@@ -8,6 +8,9 @@ import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
 import de.bestellsystem.gutschein.domain.Gutschein;
 import de.bestellsystem.katalog.domain.Produkt;
 import de.bestellsystem.mahnwesen.domain.Mahnung;
+import de.bestellsystem.versand.domain.Lieferstatus;
+import de.bestellsystem.versand.domain.Logistikdienstleister;
+import de.bestellsystem.versand.domain.Versandpaket;
 import de.bestellsystem.zahlung.domain.Buchungsart;
 import de.bestellsystem.zahlung.domain.Transaktionsstatus;
 import de.bestellsystem.zahlung.domain.Zahlung;
@@ -24,6 +27,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -41,7 +45,8 @@ import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * Aufgegebene Bestellung; Aggregatwurzel für Positionen und Zahlungen (E04, E08).
+ * Aufgegebene Bestellung; Aggregatwurzel für Positionen, Zahlungen, Mahnungen und Versandpakete
+ * (E04, E08, E06, E07).
  *
  * <p>Einzelpreise, Rabattbetrag und Lieferanschrift sind eingefroren (I-8); Warenwert und
  * Gesamtwert werden immer berechnet (D-01).
@@ -91,6 +96,11 @@ public class Bestellung {
     @JoinColumn(name = "bestellnummer", nullable = false)
     @OrderBy("erstelltAm")
     private List<Mahnung> mahnungen = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "bestellnummer", nullable = false)
+    @OrderColumn(name = "reihenfolge")
+    private List<Versandpaket> pakete = new ArrayList<>();
 
     protected Bestellung() {}
 
@@ -281,6 +291,33 @@ public class Bestellung {
                                         .formatted(zahlungId, bestellnummer)));
     }
 
+    /** Neues Paket mit Status ANGELEGT (US-07.1); I-11 prüft der Service über alle Bestellungen. */
+    public Versandpaket legePaketAn(
+            Logistikdienstleister dienstleister, String sendungsnummer, Instant zeitpunkt) {
+        Versandpaket paket = new Versandpaket(dienstleister, sendungsnummer, zeitpunkt);
+        pakete.add(paket);
+        return paket;
+    }
+
+    /** Statuswechsel eines Pakets dieser Bestellung (US-07.2, D-22); 404 bei fremdem Paket. */
+    public Versandpaket aendereLieferstatus(
+            UUID paketId, Lieferstatus neuerStatus, Instant zeitpunkt) {
+        Versandpaket paket = paket(paketId);
+        paket.aendereStatus(neuerStatus, zeitpunkt);
+        return paket;
+    }
+
+    /** Paket dieser Bestellung; 404, wenn es nicht dazugehört. */
+    public Versandpaket paket(UUID paketId) {
+        return pakete.stream()
+                .filter(paket -> paket.getId().equals(paketId))
+                .findFirst()
+                .orElseThrow(() ->
+                        new NichtGefundenException(
+                                "Paket %s gehört nicht zur Bestellung %s"
+                                        .formatted(paketId, bestellnummer)));
+    }
+
     public String getBestellnummer() {
         return bestellnummer;
     }
@@ -319,6 +356,11 @@ public class Bestellung {
 
     public List<Mahnung> getMahnungen() {
         return Collections.unmodifiableList(mahnungen);
+    }
+
+    /** In Anlagereihenfolge (US-07.1 AK3). */
+    public List<Versandpaket> getPakete() {
+        return Collections.unmodifiableList(pakete);
     }
 
     // Die Bestellnummer wird vor dem Anlegen vergeben und ändert sich nie.

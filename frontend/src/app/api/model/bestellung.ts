@@ -8,6 +8,7 @@
  * Do not edit the class manually.
  */
 import { Zahlung } from './zahlung';
+import { Versandpaket } from './versandpaket';
 import { Geld } from './geld';
 import { Anschrift } from './anschrift';
 import { Bestellposition } from './bestellposition';
@@ -44,6 +45,10 @@ export interface Bestellung {
    * max(0, gesamtwert − bezahlteSumme) (D-05)
    */
   offenerBetrag: Geld;
+  /**
+   * Versandpakete in Anlagereihenfolge; leer, solange nichts versandt ist
+   */
+  pakete: Array<Versandpaket>;
   positionen: Array<Bestellposition>;
   /**
    * Beim Checkout eingefroren (D-04)

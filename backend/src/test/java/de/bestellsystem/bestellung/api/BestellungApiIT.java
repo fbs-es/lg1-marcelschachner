@@ -512,7 +512,9 @@ class BestellungApiIT {
     }
 
     @Test
-    @DisplayName("Fahrplan 4a: Bestellabruf braucht unabhängig von der Positionszahl 2 Abfragen")
+    @DisplayName(
+            "Fahrplan 4a, US-07.3 AK4: Bestellabruf braucht unabhängig von der Positionszahl 3"
+                    + " Abfragen")
     void bestellabrufOhneNPlusEins() throws Exception {
         String klein = bestellnummer(gibAuf(einBuch(), "HERBST10"));
         StringBuilder viele = new StringBuilder(einBuch());
@@ -522,8 +524,8 @@ class BestellungApiIT {
         }
         String gross = bestellnummer(gibAuf(viele.toString(), "HERBST10"));
 
-        assertThat(abfragenFuerAbruf(klein)).isEqualTo(2);
-        assertThat(abfragenFuerAbruf(gross)).isEqualTo(2);
+        assertThat(abfragenFuerAbruf(klein)).isEqualTo(3);
+        assertThat(abfragenFuerAbruf(gross)).isEqualTo(3);
     }
 
     private long abfragenFuerAbruf(String bestellnummer) throws Exception {

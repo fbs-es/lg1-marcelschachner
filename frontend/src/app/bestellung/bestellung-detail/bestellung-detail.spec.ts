@@ -48,6 +48,7 @@ const BESTELLUNG: Bestellung = {
   bezahlteSumme: euro(0),
   offenerBetrag: euro(4950),
   istVollstaendigBezahlt: false,
+  pakete: [],
 };
 
 describe('BestellungDetail', () => {
@@ -161,6 +162,34 @@ describe('BestellungDetail', () => {
     expect(status.textContent).toContain('vollständig bezahlt');
     expect(status.classList).toContain('bezahlt');
     expect(element.querySelector('.offen')!.textContent).toContain('0,00 €');
+  });
+
+  it('US-07.3 AK1/AK2: zeigt den Versandabschnitt mit den Paketen vom Backend', async () => {
+    await erzeugen();
+    http.expectOne(URL).flush(BESTELLUNG);
+    await fixture.whenStable();
+    expect(element.querySelector('.keine-pakete')!.textContent).toContain(
+      'Noch kein Paket versandt.',
+    );
+
+    await erzeugen();
+    http.expectOne(URL).flush({
+      ...BESTELLUNG,
+      pakete: [
+        {
+          id: 'v1',
+          dienstleister: 'DHL',
+          sendungsnummer: 'AB123DE',
+          lieferstatus: 'IN_ZUSTELLUNG',
+          angelegtAm: '2026-11-12T09:30:00Z',
+          statusGeaendertAm: '2026-11-13T08:00:00Z',
+          erlaubteFolgestatus: ['ZUGESTELLT', 'RETOURE', 'VERLOREN'],
+        },
+      ],
+    } satisfies Bestellung);
+    await fixture.whenStable();
+    expect(element.querySelector('.pakete')!.textContent).toContain('AB123DE');
+    expect(element.querySelector('.pakete')!.textContent).toContain('in Zustellung');
   });
 
   it('zeigt ohne Gutschein keine Rabattzeile', async () => {

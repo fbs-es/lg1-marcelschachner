@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 7 (Merkliste E03: US-03.1, US-03.2, D-21). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 8 (Versand E07: US-07.1 bis US-07.3, D-22). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -45,9 +45,9 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `gutschein.application` | `GutscheinService.zumEinloesen(code)` (422 bei unbekanntem Code) |
 | `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabriken `ausstehend` für erste Zahlung und für Teilzahlung/Erstattung mit Betrag > 0): `aendereStatus` (nur aus `AUSSTEHEND`, 422; Zeitpunkt nur bei `ERFOLGREICH`, D-19), `istErfolgreich`, `istAusstehend`, `istErstattung`; Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
 | `zahlung.api` | `ZahlungController` (Statuswechsel, Erstattung, Buchung abrufen; nutzt `BestellungService`, da `Zahlung` Teil des Bestellungs-Aggregats ist), DTOs `ZahlungDto`, `StatusAenderungDto`, `ErstattungBuchenDto` |
-| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung); Mahnwesen (D-03, D-20) `istUeberfaellig(stichtag)`, `istMahnungFaellig(stichtag, intervall)`, `mahne(stichtag, intervall)`, `letzteMahnung`, Mahnungen `cascade ALL`. `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
-| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18), `findeZahlungenDesKunden` (Zahlungen der Historie), `findeMitZahlungen` (Kunde und Nummer, für Buchungen), `findeFaelligeMitPositionen` / `findeZahlungenFaelliger` / `findeMahnungenFaelliger` (fällig vor Stichtag, drei Abfragen), `findeKundenMitFaelligenBestellungen` |
-| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (drei Abfragen, US-04.2, D-19), `zahlung`, `aendereZahlungsstatus` (Zeitpunkt aus `Clock`), `bucheErstattung`, `faelligeZumMahnen` (drei Abfragen), `kundenMitFaelligenBestellungen`; Buchungen sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` (D-19); `Positionswunsch` |
+| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung); Mahnwesen (D-03, D-20) `istUeberfaellig(stichtag)`, `istMahnungFaellig(stichtag, intervall)`, `mahne(stichtag, intervall)`, `letzteMahnung`, Mahnungen `cascade ALL`; Versand (E07, D-22) `legePaketAn`, `aendereLieferstatus`, `paket(id)` (404 bei fremdem Paket), Pakete `cascade ALL` mit `@OrderColumn` (Anlagereihenfolge). `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
+| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18), `findeZahlungenDesKunden` (Zahlungen der Historie), `findeMitZahlungen` (Kunde und Nummer, für Buchungen), `findePakete` (`LEFT JOIN FETCH` Pakete), `findeMitPaketen` (Kunde und Nummer, für Versand), `findeFaelligeMitPositionen` / `findeZahlungenFaelliger` / `findeMahnungenFaelliger` (fällig vor Stichtag, drei Abfragen), `findeKundenMitFaelligenBestellungen` |
+| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (drei Abfragen: Positionen, Zahlungen, Pakete), `historie` (drei Abfragen, US-04.2, D-19), `zahlung`, `aendereZahlungsstatus` (Zeitpunkt aus `Clock`), `bucheErstattung`, `faelligeZumMahnen` (drei Abfragen), `kundenMitFaelligenBestellungen`, `paket`, `legePaketAn` (409 bei vergebener Sendungsnummer, vorab per `exists` und beim `flush` über den Unique-Constraint), `aendereLieferstatus` (Zeitpunkt aus `Clock`); Buchungen und Versand sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` (D-19); `Positionswunsch` |
 | `mahnwesen.domain` | `Mahnung` (Entity, UUID, Teil der Bestellung; eingefroren `erstelltAm`, `gemahnterBetrag` > 0), `Mahnbenachrichtigung` (Empfänger, Stichtag, Positionen, `summe`), `Mahnposition` |
 | `mahnwesen.application` | `MahnService.pruefe(kundenId, stichtag)` (`@Transactional`: Kunde sperren, Bestellungen laden, `Kunde.fuehreMahnpruefungDurch`, Versand vor dem Commit), `Mahnlauf` (`@Scheduled`, `fuehreDurch(stichtag)`: je Kunde eigene Transaktion, Fehler gezählt), `Mahnlaufergebnis`, `Mahnschreiben` (Text der E-Mail) |
 | `mahnwesen.api` | `MahnwesenController`, DTOs `MahnpruefungDto`, `MahnpositionDto`, `MahnlaufDto` |
@@ -55,6 +55,9 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `merkliste.persistence` | `MerklisteneintragRepository`: `merke` (native `INSERT … ON CONFLICT DO NOTHING`, 1 = neu, 0 = schon gemerkt), `findeMerkliste` (`JOIN FETCH` Produkt, Zeitpunkt absteigend, dann Titel), `findeEintrag`, `entferne` (JPQL-Delete, No-op ohne Eintrag) |
 | `merkliste.application` | `MerklisteService`: `merke` (404 Kunde/Produkt, Zeitpunkt aus `Clock`, liefert `Merkergebnis(eintrag, istNeu)`), `merkliste`, `eintrag` (404), `entferne` (404 nur für unbekannten Kunden) |
 | `merkliste.api` | `MerklisteController`, DTO `MerklisteneintragDto` (`produktId`, `titel`, aktueller `listenpreis`, `istVerfuegbar`, Merkdatum `hinzugefuegtAm` in `bestellsystem.zeitzone`) |
+| `versand.domain` | `Versandpaket` (Entity, UUID, Teil der Bestellung; `normalisiere` Sendungsnummer: getrimmt, groß, `[A-Z0-9]{1,50}`; `aendereStatus` 422 bei unerlaubtem Übergang; `angelegtAm`, `statusGeaendertAm`), `Lieferstatus` (`erlaubteFolgestatus`, `kannWechselnZu`; D-22), `Logistikdienstleister` (DHL, DPD, GLS, HERMES, UPS) |
+| `versand.persistence` | `VersandpaketRepository.existsByDienstleisterAndSendungsnummer` (I-11) |
+| `versand.api` | `VersandController` (nutzt `BestellungService`, da Pakete Teil des Aggregats sind), DTOs `VersandpaketDto` (mit `erlaubteFolgestatus`), `PaketAnlegenDto`, `LieferstatusAenderungDto` |
 | `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto`, `BestellungUebersichtDto` |
 
 ## REST-API
@@ -77,7 +80,10 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | DELETE | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | 204, 404, 409, 422 letzte Lieferadresse (I-1) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen` | Checkout: 201 + `Location`, 400 (keine Positionen, Menge < 1), 404 (Kunde, Produkt, fremde Adresse), 409 Bestand, 422 (keine Lieferadresse, Gutschein abgelaufen/unbekannt), D-17 |
 | GET | `/api/v1/kunden/{kundenId}/bestellungen` | Bestellhistorie (US-04.2): Nummer, Datum, Anzahl Positionen, Gesamtwert, offener Betrag, `istVollstaendigBezahlt`; neueste zuerst; 404 unbekannter Kunde |
-| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen, `bezahlteSumme`, `offenerBetrag`, `istVollstaendigBezahlt` (US-05.1); 404 auch bei fremder Bestellung |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen, `bezahlteSumme`, `offenerBetrag`, `istVollstaendigBezahlt` (US-05.1), `pakete` (US-07.3); 404 auch bei fremder Bestellung |
+| POST | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete` | `{dienstleister, sendungsnummer}`: 201 + `Location`, 400, 404, 409 Sendungsnummer beim Dienstleister vergeben oder Versionskonflikt (US-07.1, D-22) |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}` | ein Paket mit `erlaubteFolgestatus`; 404 bei fremder Bestellung oder fremdem Paket |
+| PUT | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}/status` | `{lieferstatus}`: 200, 400, 404, 409 Versionskonflikt, 422 unerlaubter Übergang (US-07.2, D-22) |
 | GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}` | eine Buchung; 404 bei fremder Bestellung oder Buchung |
 | PUT | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status` | `{transaktionsstatus}`: 200, 400, 404, 409 Versionskonflikt, 422 (nicht mehr `AUSSTEHEND` oder Ziel `AUSSTEHEND`, D-19) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen` | `{zahlungsart, betrag}`: 201 + `Location` (Buchung), 400 (Betrag 0, Pflichtfelder), 404, 409, 422 über erstattbar (D-19) |
@@ -173,6 +179,23 @@ GET /kunden/{id}/merkliste → pruefeVorhanden + findeMerkliste: 2 Abfragen, una
 
 Gleichzeitiges doppeltes Merken: das zweite `INSERT` wartet auf den Primärschlüssel-Index und fügt nach dem Commit des ersten nichts ein (200).
 
+## Datenfluss (Versand, D-22)
+
+```
+POST …/bestellungen/{nr}/pakete ─ VersandController (@Valid PaketAnlegenDto)
+  → BestellungService.legePaketAn (@Transactional)
+      findeMitPaketen (404) → lock OPTIMISTIC_FORCE_INCREMENT
+      Versandpaket.normalisiere (400) → existsByDienstleisterAndSendungsnummer (409)
+      Bestellung.legePaketAn (Zeitpunkt aus Clock) → flush: INSERT versandpaket   Unique-Verletzung → 409
+  ← 201 VersandpaketDto + Location …/pakete/{id}
+
+PUT …/pakete/{id}/status → BestellungService.aendereLieferstatus
+      findeMitPaketen (404) → lock → Bestellung.aendereLieferstatus → Versandpaket.aendereStatus (422)
+  ← 200 VersandpaketDto; beim Commit UPDATE versandpaket, UPDATE bestellung.version
+```
+
+Die Existenzprüfung läuft vor dem Anhängen des Pakets, sonst würde der Auto-Flush vor der Abfrage das neue Paket selbst finden.
+
 ## Querschnitt
 
 ### Geld (D-11)
@@ -206,6 +229,11 @@ Gleichzeitiges doppeltes Merken: das zweite `INSERT` wartet auf den Primärschl�
 
 - Statuswechsel und Erstattung sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT`, auch wenn sich nur eine `Zahlung` ändert.
 - Zwei gleichzeitige Erstattungen, die zusammen den erstattbaren Betrag übersteigen würden, scheitern für die zweite mit 409 Versionskonflikt.
+
+### Nebenläufigkeit im Versand (D-22)
+
+- Anlegen und Statuswechsel sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` wie Buchungen.
+- Gleiche Sendungsnummer gleichzeitig auf zwei Bestellungen: beide bestehen die Existenzprüfung, das zweite `INSERT` wartet am Unique-Index `versandpaket_sendungsnummer_eindeutig` und scheitert nach dem Commit des ersten; `flush` übersetzt das in 409.
 
 ### Nebenläufigkeit im Checkout (D-09, ADR 0003)
 
@@ -265,6 +293,7 @@ Gleichzeitiges doppeltes Merken: das zweite `INSERT` wartet auf den Primärschl�
 | Tabelle `bestellposition` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`), `zeilennummer` (≥ 1), `produkt_id` (FK, Index), `menge` (≥ 1), `einzelpreis_cent` (≥ 0); UNIQUE je Bestellung auf Zeilennummer und Produkt (I-6) |
 | Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, gesetzt bei `ERFOLGREICH`, D-17, D-19) |
 | Tabelle `merklisteneintrag` | PK `(kunde_id, produkt_id)` (I-4), beide FK `ON DELETE CASCADE` (D-07: Produkt entfernt → Eintrag weg), `hinzugefuegt_am` TIMESTAMPTZ (D-21); Index auf `produkt_id` |
+| Tabelle `versandpaket` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `reihenfolge` (`@OrderColumn`, nullable), `dienstleister`, `lieferstatus` (je CHECK auf Enum-Werte), `sendungsnummer` (CHECK `^[A-Z0-9]{1,50}$`), `angelegt_am`, `status_geaendert_am` (TIMESTAMPTZ); UNIQUE `versandpaket_sendungsnummer_eindeutig` auf `(dienstleister, sendungsnummer)` (I-11) |
 | Tabelle `mahnung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `erstellt_am`, `gemahnter_betrag_cent` (> 0) (D-03, D-20) |
 
 ### Migrationen
@@ -277,6 +306,7 @@ Gleichzeitiges doppeltes Merken: das zweite `INSERT` wartet auf den Primärschl�
 | V4 | `V4__gutschein_bestellung_zahlung.sql` | Tabellen `gutschein`, `bestellung`, `bestellposition`, `zahlung` |
 | V5 | `V5__mahnung.sql` | Tabelle `mahnung`, Index `bestellung_faellig_am_idx` |
 | V6 | `V6__merklisteneintrag.sql` | Tabelle `merklisteneintrag` |
+| V7 | `V7__versandpaket.sql` | Tabelle `versandpaket` |
 
 ## Lokale Infrastruktur
 
@@ -305,9 +335,11 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | `src/app/bestellung/warenkorb.ts` | `Warenkorb` (Signals, nur im Speicher, D-18): `lege` (fasst zusammen), `aendereMenge`, `entferne`, `leere`, `stueckzahl` |
 | `src/app/bestellung/bezeichnungen.ts` | deutsche Namen für Zahlungsart und Transaktionsstatus |
 | `src/app/bestellung/checkout` | `/checkout`: Warenkorb ohne Summen, Kunde wählen, Lieferadressen des Kunden (`switchMap`), Zahlungsart, Gutscheincode; 409/422 als Meldung, Eingaben bleiben; Erfolg leert den Warenkorb |
-| `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht mit Bezahlstatus, bezahlter Summe, offenem Betrag und Buchungen (Erstattungen gekennzeichnet; US-05.1, D-19), mit `?aufgegeben=ja` zugleich Bestätigung |
+| `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht mit Bezahlstatus, bezahlter Summe, offenem Betrag und Buchungen (Erstattungen gekennzeichnet; US-05.1, D-19), mit `?aufgegeben=ja` zugleich Bestätigung; darunter `<app-versandpakete>` |
 | `src/app/bestellung/bestellhistorie` | `<app-bestellhistorie>`: Liste mit Link zur Bestellansicht und Bezahlstatus („bezahlt“ oder „offen: Betrag“), Laden, Fehler, Leerzustand |
 | `src/app/merkliste/merkliste` | `/kunden/:kundenId/merkliste` (Link in der Kundenansicht): Einträge in Backend-Reihenfolge mit Merkdatum, Preis, Verfügbarkeit, „Entfernen“; Produktauswahl + „Merken“; Laden, Fehler mit Wiederholen, Leerzustand, Aktionsfehler als ProblemDetail-Meldung (US-03.1, US-03.2, D-21) |
+| `src/app/versand/versandpakete` | `<app-versandpakete>` (Abschnitt „Versand“): Pakete mit Dienstleister, Sendungsnummer, Status, Zeitpunkten; je Paket Auswahl der erlaubten Folgestatus vom Backend und „Status setzen“, im Endzustand „abgeschlossen“; Formular „Paket anlegen“; Leerzustand „Noch kein Paket versandt.“; Fehler als ProblemDetail-Meldung; Liste per `linkedSignal`, aktualisiert aus den Antworten (US-07.1 bis US-07.3) |
+| `src/app/versand/bezeichnungen.ts` | deutsche Namen für Lieferstatus und Dienstleister |
 | `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`, `.zahl`, `.unsichtbar`) |
 
 - `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
@@ -327,11 +359,14 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Domain-Unit Zahlungen | JUnit 5, AssertJ | `BezahlstatusTest` (US-05.1 AK1–7, Statusübergänge und Erstattungsgrenze D-19) |
 | API-Integration Zahlungen | MockMvc, PostgreSQL, feste Uhr | `ZahlungApiIT` (US-05.1 AK1/2/4/5/7 über HTTP, Historie mit Bezahlstatus, Statuscodes D-19, `Location`) |
 | Nebenläufigkeit Erstattung | `TransactionTemplate`, Latches | `ErstattungNebenlaeufigkeitIT` (zwei Erstattungen über je 60 € auf 100 €: genau eine) |
-| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie 3 Abfragen bei 1 und 3 Bestellungen (Kunde, Positionen, Zahlungen); Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
-| API-Integration Merkliste | MockMvc, PostgreSQL, `VerstellbareUhrKonfiguration` (Uhr je Test verstellbar) | `MerklisteApiIT` (US-03.1 AK1–5, US-03.2 AK1–5, gleichzeitiges Merken, Zeitzone des Merkdatums, 2 Abfragen beim Abruf, Kaskade D-07) |
+| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie 3 Abfragen bei 1 und 3 Bestellungen (Kunde, Positionen, Zahlungen); Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 3) |
+| API-Integration Merkliste | MockMvc, PostgreSQL, `VerstellbareUhrKonfiguration` (gemeinsam im Testwurzelpaket, Uhr je Test verstellbar) | `MerklisteApiIT` (US-03.1 AK1–5, US-03.2 AK1–5, gleichzeitiges Merken, Zeitzone des Merkdatums, 2 Abfragen beim Abruf, Kaskade D-07) |
+| Domain-Unit Versand | JUnit 5, AssertJ | `VersandpaketTest` (US-07.1 AK1/4/6, US-07.2 AK1–7), `VersandTest` (Pakete in der Bestellung, fremdes Paket 404) |
+| API-Integration Versand | MockMvc, PostgreSQL, `VerstellbareUhrKonfiguration` | `VersandApiIT` (US-07.1 AK1–7, US-07.2 AK1–7, US-07.3 AK1/3/4: 3 Abfragen unabhängig von der Paketzahl) |
+| Nebenläufigkeit Versand | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `VersandpaketNebenlaeufigkeitIT` (gleiche Sendungsnummer auf zwei Bestellungen: genau eine, zweite 409) |
 | Nebenläufigkeit Checkout | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `BestellungNebenlaeufigkeitIT` (letzte Lampe: genau einer; genug Bestand: beide) |
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5, US-07.3 AK1/2), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `versandpakete.spec.ts` (US-07.1 bis US-07.3), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

@@ -5,17 +5,18 @@ import { RouterLink } from '@angular/router';
 import { Bestellung, BestellungenService } from '../../api';
 import { GeldPipe } from '../../gemeinsam/geld.pipe';
 import { problemMeldung } from '../../gemeinsam/problem-meldung';
+import { Versandpakete } from '../../versand/versandpakete/versandpakete';
 import { transaktionsstatusName, zahlungsartName } from '../bezeichnungen';
 
 type Zustand = 'laedt' | 'fehler' | 'geladen';
 
 /**
- * Bestellansicht mit Bezahlstatus (US-05.1, D-19); nach dem Checkout zugleich
- * Bestellbestätigung (US-04.1, US-04.2 AK7).
+ * Bestellansicht mit Bezahlstatus (US-05.1, D-19) und Versand (US-07.3); nach dem Checkout
+ * zugleich Bestellbestätigung (US-04.1, US-04.2 AK7).
  */
 @Component({
   selector: 'app-bestellung-detail',
-  imports: [RouterLink, DatePipe, GeldPipe],
+  imports: [RouterLink, DatePipe, GeldPipe, Versandpakete],
   templateUrl: './bestellung-detail.html',
   styleUrl: './bestellung-detail.css',
 })

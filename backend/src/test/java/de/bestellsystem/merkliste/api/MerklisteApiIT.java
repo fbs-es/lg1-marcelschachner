@@ -11,12 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import de.bestellsystem.Datenbestand;
 import de.bestellsystem.TestcontainersKonfiguration;
+import de.bestellsystem.VerstellbareUhrKonfiguration;
+import de.bestellsystem.VerstellbareUhrKonfiguration.VerstellbareUhr;
 import de.bestellsystem.gemeinsam.domain.Anschrift;
 import de.bestellsystem.gemeinsam.domain.Geld;
 import de.bestellsystem.katalog.domain.Produkt;
 import de.bestellsystem.katalog.persistence.ProduktRepository;
 import de.bestellsystem.kunde.application.KundeService;
-import de.bestellsystem.merkliste.api.VerstellbareUhrKonfiguration.VerstellbareUhr;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
 import java.util.List;

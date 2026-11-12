@@ -1,4 +1,4 @@
-package de.bestellsystem.merkliste.api;
+package de.bestellsystem;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -7,9 +7,11 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
-/** Uhr, die ein Test auf verschiedene Tage stellen kann (Merkdatum US-03.1, US-03.2). */
+/**
+ * Uhr, die ein Test auf verschiedene Tage stellen kann (Merkdatum US-03.1, Lieferstatus US-07.2).
+ */
 @TestConfiguration(proxyBeanMethods = false)
-class VerstellbareUhrKonfiguration {
+public class VerstellbareUhrKonfiguration {
 
     @Bean
     @Primary
@@ -17,7 +19,7 @@ class VerstellbareUhrKonfiguration {
         return new VerstellbareUhr(ZoneId.of("Europe/Berlin"));
     }
 
-    static final class VerstellbareUhr extends Clock {
+    public static final class VerstellbareUhr extends Clock {
 
         private final ZoneId zone;
         private volatile Instant jetzt = Instant.parse("2026-11-12T09:30:00Z");
@@ -26,7 +28,7 @@ class VerstellbareUhrKonfiguration {
             this.zone = zone;
         }
 
-        void stelle(Instant zeitpunkt) {
+        public void stelle(Instant zeitpunkt) {
             jetzt = zeitpunkt;
         }
 

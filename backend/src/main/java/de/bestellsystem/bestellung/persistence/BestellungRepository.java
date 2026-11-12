@@ -29,6 +29,21 @@ public interface BestellungRepository extends JpaRepository<Bestellung, String> 
                     + " :bestellnummer")
     Optional<Bestellung> findeZahlungen(@Param("bestellnummer") String bestellnummer);
 
+    /** Pakete der Bestellung in denselben Persistenzkontext; eine Bestellung kann keine haben. */
+    @Query(
+            "select b from Bestellung b left join fetch b.pakete where b.bestellnummer ="
+                    + " :bestellnummer")
+    Optional<Bestellung> findePakete(@Param("bestellnummer") String bestellnummer);
+
+    @Query(
+            """
+            select b from Bestellung b
+              left join fetch b.pakete
+            where b.bestellnummer = :bestellnummer and b.kundeId = :kundeId
+            """)
+    Optional<Bestellung> findeMitPaketen(
+            @Param("kundeId") UUID kundeId, @Param("bestellnummer") String bestellnummer);
+
     // Der Zähler der Bestellnummer ist mindestens sechsstellig, kann aber länger werden (D-14);
     // erst nach Länge sortieren, damit B-2026-1000000 nach B-2026-999999 kommt.
     @Query(

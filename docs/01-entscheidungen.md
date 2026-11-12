@@ -297,3 +297,24 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Frontend: eigene Seite `/kunden/:kundenId/merkliste`, verlinkt aus der Kundenansicht. Dort werden Produkte über eine Auswahl gemerkt und entfernt. Die Produktliste bleibt unverändert.
 
 **Nicht im Umfang (Schritt 7):** „Merken“-Knopf in der Produktliste, Übernahme in den Warenkorb.
+
+---
+
+## D-22 Versandpakete im Detail: Übergänge, Dienstleister, Zeitpunkte
+
+**Problem:** D-12 nennt die Lieferstatus und „nur vorwärts“, lässt aber offen, ob Stufen übersprungen werden dürfen, ab wann `RETOURE`/`VERLOREN` möglich sind, ob `ZUGESTELLT` endgültig ist, wie der Dienstleister erfasst wird (davon hängt I-11 ab), ob ein Paket an Bedingungen geknüpft ist und welche Zeitpunkte ein Paket führt.
+
+**Entscheidung:**
+- Vorwärtsreihenfolge `ANGELEGT → UEBERGEBEN → IN_ZUSTELLUNG → ZUGESTELLT`; Stufen dürfen übersprungen werden (z. B. `ANGELEGT → ZUGESTELLT`).
+- `RETOURE` und `VERLOREN` sind erst ab `UEBERGEBEN` erreichbar (aus `UEBERGEBEN` oder `IN_ZUSTELLUNG`).
+- Endzustände: `ZUGESTELLT`, `RETOURE`, `VERLOREN`. Rückwärts, aus einem Endzustand oder in denselben Status: **422**.
+- Ein neues Paket hat immer `ANGELEGT`.
+- Dienstleister aus fester Liste `DHL`, `DPD`, `GLS`, `HERMES`, `UPS`.
+- Sendungsnummer: getrimmt und großgeschrieben gespeichert, 1–50 Zeichen, nur Buchstaben und Ziffern. Eindeutig je Dienstleister über alle Bestellungen (I-11); doppelt: **409**.
+- Keine Bedingung an den Bezahlstatus; beliebig viele Pakete je Bestellung.
+- Ein Paket führt `angelegtAm` und `statusGeaendertAm` (Zeitpunkte aus der Uhr, beim Anlegen gleich). Keine Statushistorie.
+- Die API liefert je Paket die erlaubten Folgestatus, damit das Frontend die Regel nicht dupliziert.
+- Pfade unter der Bestellung: `POST …/bestellungen/{bestellnummer}/pakete` (201 + `Location`), `GET …/pakete/{paketId}`, `PUT …/pakete/{paketId}/status`. Unbekannte oder fremde Bestellung bzw. Paket: **404**. Die Bestellansicht enthält die Pakete.
+- Frontend: Abschnitt „Versand“ in der Bestellansicht; dort legt der Mitarbeiter ohne Login Pakete an und setzt den Status.
+
+**Nicht im Umfang (Schritt 8):** Pakete in der Bestellhistorie, Paket ändern oder löschen, Statushistorie, Benachrichtigung des Kunden.

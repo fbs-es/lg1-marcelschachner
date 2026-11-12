@@ -19,10 +19,10 @@ Bestellungen werden in ein oder mehrere Pakete aufgeteilt verschickt, und Kunden
 
 - Zuordnung von Positionen zu Paketen, Tracking-API der Dienstleister, Versandetiketten.
 
-## Story-Kandidaten
+## Stories
 
-| ID | Titel |
-|---|---|
-| US-07.1 | Versandpaket für eine Bestellung anlegen |
-| US-07.2 | Lieferstatus aktualisieren (ungültige Übergänge abgelehnt) |
-| US-07.3 | Kunde sieht Pakete und Status seiner Bestellung |
+| ID | Titel | Status |
+|---|---|---|
+| [US-07.1](../stories/US-07.1-versandpaket-anlegen.md) | Versandpaket für eine Bestellung anlegen | ausformuliert |
+| [US-07.2](../stories/US-07.2-lieferstatus-aktualisieren.md) | Lieferstatus aktualisieren (ungültige Übergänge abgelehnt) | ausformuliert |
+| [US-07.3](../stories/US-07.3-pakete-einer-bestellung-sehen.md) | Kunde sieht Pakete und Status seiner Bestellung | ausformuliert |

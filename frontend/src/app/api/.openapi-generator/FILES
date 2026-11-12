@@ -10,6 +10,7 @@ api/kunden.service.ts
 api/mahnwesen.service.ts
 api/merkliste.service.ts
 api/produkte.service.ts
+api/versand.service.ts
 api/zahlungen.service.ts
 configuration.ts
 encoder.ts
@@ -27,11 +28,13 @@ model/geld.ts
 model/kunde-uebersicht.ts
 model/kunde.ts
 model/lagerbestand.ts
+model/lieferstatus-aenderung.ts
 model/mahnlauf.ts
 model/mahnposition.ts
 model/mahnpruefung.ts
 model/merklisteneintrag.ts
 model/models.ts
+model/paket-anlegen.ts
 model/positionswunsch.ts
 model/problem-detail.ts
 model/produkt-anlegen.ts
@@ -39,6 +42,7 @@ model/produkt.ts
 model/registrierung.ts
 model/status-aenderung.ts
 model/verfuegbarkeit.ts
+model/versandpaket.ts
 model/zahlung.ts
 param.ts
 provide-api.ts

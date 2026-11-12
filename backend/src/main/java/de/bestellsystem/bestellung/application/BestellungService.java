@@ -6,14 +6,20 @@ import de.bestellsystem.bestellung.persistence.BestellungRepository;
 import de.bestellsystem.gemeinsam.application.BestellnummernGenerator;
 import de.bestellsystem.gemeinsam.application.FachlicheEinstellungen;
 import de.bestellsystem.gemeinsam.domain.Anschrift;
+import de.bestellsystem.gemeinsam.domain.Geld;
 import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
 import de.bestellsystem.gutschein.application.GutscheinService;
 import de.bestellsystem.gutschein.domain.Gutschein;
 import de.bestellsystem.katalog.application.ProduktService;
 import de.bestellsystem.katalog.domain.Produkt;
 import de.bestellsystem.kunde.application.KundeService;
+import de.bestellsystem.zahlung.domain.Transaktionsstatus;
+import de.bestellsystem.zahlung.domain.Zahlung;
 import de.bestellsystem.zahlung.domain.Zahlungsart;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +40,7 @@ public class BestellungService {
     private final BestellnummernGenerator bestellnummernGenerator;
     private final FachlicheEinstellungen einstellungen;
     private final Clock uhr;
+    private final EntityManager entityManager;
 
     BestellungService(
             BestellungRepository repository,
@@ -42,7 +49,8 @@ public class BestellungService {
             GutscheinService gutscheinService,
             BestellnummernGenerator bestellnummernGenerator,
             FachlicheEinstellungen einstellungen,
-            Clock uhr) {
+            Clock uhr,
+            EntityManager entityManager) {
         this.repository = repository;
         this.kundeService = kundeService;
         this.produktService = produktService;
@@ -50,6 +58,7 @@ public class BestellungService {
         this.bestellnummernGenerator = bestellnummernGenerator;
         this.einstellungen = einstellungen;
         this.uhr = uhr;
+        this.entityManager = entityManager;
     }
 
     /**
@@ -96,16 +105,59 @@ public class BestellungService {
         Bestellung bestellung =
                 repository
                         .findeMitPositionen(kundenId, bestellnummer)
-                        .orElseThrow(() ->
-                                new NichtGefundenException(
-                                        "Bestellung " + bestellnummer + " existiert nicht"));
+                        .orElseThrow(() -> nichtGefunden(bestellnummer));
         repository.findeZahlungen(bestellnummer);
         return bestellung;
     }
 
-    /** Bestellungen des Kunden mit Positionen, neueste zuerst (US-04.2); 404 bei unbekanntem. */
+    /**
+     * Bestellungen des Kunden mit Positionen und Zahlungen, neueste zuerst (US-04.2, D-19); 404 bei
+     * unbekanntem Kunden.
+     */
     public List<Bestellung> historie(UUID kundenId) {
         kundeService.pruefeVorhanden(kundenId);
-        return repository.findeHistorie(kundenId);
+        List<Bestellung> bestellungen = repository.findeHistorie(kundenId);
+        if (!bestellungen.isEmpty()) {
+            repository.findeZahlungenDesKunden(kundenId);
+        }
+        return bestellungen;
+    }
+
+    /** Eine Buchung der Bestellung des Kunden; 404 bei fremder Bestellung oder Buchung. */
+    public Zahlung zahlung(UUID kundenId, String bestellnummer, UUID zahlungId) {
+        return repository
+                .findeMitZahlungen(kundenId, bestellnummer)
+                .orElseThrow(() -> nichtGefunden(bestellnummer))
+                .zahlung(zahlungId);
+    }
+
+    /** Statuswechsel einer Buchung (D-19); Zeitpunkt aus der Uhr. */
+    @Transactional
+    public Zahlung aendereZahlungsstatus(
+            UUID kundenId, String bestellnummer, UUID zahlungId, Transaktionsstatus status) {
+        return zumBuchen(kundenId, bestellnummer)
+                .aendereZahlungsstatus(zahlungId, status, Instant.now(uhr));
+    }
+
+    /** Erstattung mit Status AUSSTEHEND (D-19). */
+    @Transactional
+    public Zahlung bucheErstattung(
+            UUID kundenId, String bestellnummer, Zahlungsart zahlungsart, Geld betrag) {
+        return zumBuchen(kundenId, bestellnummer).bucheErstattung(zahlungsart, betrag);
+    }
+
+    // Erhöht die Version beim Festschreiben, auch wenn sich nur der Status einer Zahlung ändert;
+    // so scheitert eine gleichzeitige zweite Buchung auf derselben Bestellung (D-19).
+    private Bestellung zumBuchen(UUID kundenId, String bestellnummer) {
+        Bestellung bestellung =
+                repository
+                        .findeMitZahlungen(kundenId, bestellnummer)
+                        .orElseThrow(() -> nichtGefunden(bestellnummer));
+        entityManager.lock(bestellung, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
+        return bestellung;
+    }
+
+    private static NichtGefundenException nichtGefunden(String bestellnummer) {
+        return new NichtGefundenException("Bestellung " + bestellnummer + " existiert nicht");
     }
 }

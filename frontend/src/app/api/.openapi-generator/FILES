@@ -8,6 +8,7 @@ api/api.ts
 api/bestellungen.service.ts
 api/kunden.service.ts
 api/produkte.service.ts
+api/zahlungen.service.ts
 configuration.ts
 encoder.ts
 git_push.sh
@@ -19,6 +20,7 @@ model/bestellposition.ts
 model/bestellung-aufgeben.ts
 model/bestellung-uebersicht.ts
 model/bestellung.ts
+model/erstattung-buchen.ts
 model/geld.ts
 model/kunde-uebersicht.ts
 model/kunde.ts
@@ -29,6 +31,7 @@ model/problem-detail.ts
 model/produkt-anlegen.ts
 model/produkt.ts
 model/registrierung.ts
+model/status-aenderung.ts
 model/verfuegbarkeit.ts
 model/zahlung.ts
 param.ts

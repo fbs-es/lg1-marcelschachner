@@ -23,4 +23,12 @@ export interface BestellungUebersicht {
    * max(0, warenwert − rabattBetrag), berechnet (D-01)
    */
   gesamtwert: Geld;
+  /**
+   * bezahlteSumme ≥ gesamtwert (D-05)
+   */
+  istVollstaendigBezahlt: boolean;
+  /**
+   * max(0, gesamtwert − bezahlteSumme) (D-05)
+   */
+  offenerBetrag: Geld;
 }

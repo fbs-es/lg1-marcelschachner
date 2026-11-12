@@ -38,4 +38,17 @@ public interface BestellungRepository extends JpaRepository<Bestellung, String> 
             order by b.bestelldatum desc, length(b.bestellnummer) desc, b.bestellnummer desc
             """)
     List<Bestellung> findeHistorie(@Param("kundeId") UUID kundeId);
+
+    /** Zahlungen aller Bestellungen des Kunden in denselben Persistenzkontext (US-04.2, D-19). */
+    @Query("select b from Bestellung b join fetch b.zahlungen where b.kundeId = :kundeId")
+    List<Bestellung> findeZahlungenDesKunden(@Param("kundeId") UUID kundeId);
+
+    @Query(
+            """
+            select b from Bestellung b
+              join fetch b.zahlungen
+            where b.bestellnummer = :bestellnummer and b.kundeId = :kundeId
+            """)
+    Optional<Bestellung> findeMitZahlungen(
+            @Param("kundeId") UUID kundeId, @Param("bestellnummer") String bestellnummer);
 }

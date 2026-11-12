@@ -1,5 +1,6 @@
 package de.bestellsystem.zahlung.domain;
 
+import de.bestellsystem.gemeinsam.domain.FachlicheAblehnungException;
 import de.bestellsystem.gemeinsam.domain.Geld;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
@@ -60,6 +61,47 @@ public class Zahlung {
     /** Erste Zahlung beim Checkout (D-02). */
     public static Zahlung ausstehend(Zahlungsart zahlungsart, Geld betrag) {
         return new Zahlung(zahlungsart, Buchungsart.ZAHLUNG, Transaktionsstatus.AUSSTEHEND, betrag);
+    }
+
+    /** Teilzahlung oder Erstattung (D-19): immer AUSSTEHEND, Betrag größer 0. */
+    public static Zahlung ausstehend(
+            Zahlungsart zahlungsart, Buchungsart buchungsart, Geld betrag) {
+        if (buchungsart == null) {
+            throw new IllegalArgumentException("buchungsart ist erforderlich");
+        }
+        if (betrag == null || betrag.compareTo(Geld.NULL) <= 0) {
+            throw new IllegalArgumentException("betrag muss größer 0 sein");
+        }
+        return new Zahlung(zahlungsart, buchungsart, Transaktionsstatus.AUSSTEHEND, betrag);
+    }
+
+    /** Nur aus AUSSTEHEND in einen Endzustand (D-19); der Zeitpunkt wird nur bei Erfolg gesetzt. */
+    public void aendereStatus(Transaktionsstatus neuerStatus, Instant zeitpunkt) {
+        if (neuerStatus == null) {
+            throw new IllegalArgumentException("transaktionsstatus ist erforderlich");
+        }
+        if (transaktionsstatus != Transaktionsstatus.AUSSTEHEND
+                || neuerStatus == Transaktionsstatus.AUSSTEHEND) {
+            throw new FachlicheAblehnungException(
+                    "Der Status einer Buchung kann nicht von %s nach %s wechseln."
+                            .formatted(transaktionsstatus, neuerStatus));
+        }
+        transaktionsstatus = neuerStatus;
+        if (neuerStatus == Transaktionsstatus.ERFOLGREICH) {
+            zahlungszeitpunkt = Objects.requireNonNull(zeitpunkt, "zeitpunkt");
+        }
+    }
+
+    public boolean istErfolgreich() {
+        return transaktionsstatus == Transaktionsstatus.ERFOLGREICH;
+    }
+
+    public boolean istAusstehend() {
+        return transaktionsstatus == Transaktionsstatus.AUSSTEHEND;
+    }
+
+    public boolean istErstattung() {
+        return buchungsart == Buchungsart.ERSTATTUNG;
     }
 
     public UUID getId() {

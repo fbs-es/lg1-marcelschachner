@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 4b (Checkout im Frontend, Bestellhistorie US-04.2). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 5 (Zahlungen E05: Bezahlstatus US-05.1, Statuswechsel und Erstattung D-19). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -43,11 +43,11 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
 | `gutschein.persistence` | `GutscheinRepository.findByCode` |
 | `gutschein.application` | `GutscheinService.zumEinloesen(code)` (422 bei unbekanntem Code) |
-| `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabrik `ausstehend`), Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
-| `zahlung.api` | `ZahlungDto` |
-| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`. `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
-| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18) |
-| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (zwei Abfragen, US-04.2); `Positionswunsch` |
+| `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabriken `ausstehend` für erste Zahlung und für Teilzahlung/Erstattung mit Betrag > 0): `aendereStatus` (nur aus `AUSSTEHEND`, 422; Zeitpunkt nur bei `ERFOLGREICH`, D-19), `istErfolgreich`, `istAusstehend`, `istErstattung`; Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
+| `zahlung.api` | `ZahlungController` (Statuswechsel, Erstattung, Buchung abrufen; nutzt `BestellungService`, da `Zahlung` Teil des Bestellungs-Aggregats ist), DTOs `ZahlungDto`, `StatusAenderungDto`, `ErstattungBuchenDto` |
+| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung). `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
+| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18), `findeZahlungenDesKunden` (Zahlungen der Historie), `findeMitZahlungen` (Kunde und Nummer, für Buchungen) |
+| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (drei Abfragen, US-04.2, D-19), `zahlung`, `aendereZahlungsstatus` (Zeitpunkt aus `Clock`), `bucheErstattung`; Buchungen sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` (D-19); `Positionswunsch` |
 | `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto`, `BestellungUebersichtDto` |
 
 ## REST-API
@@ -69,8 +69,11 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | PUT | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | vollständig ersetzen: 200, 400, 404, 409, 422 (I-1) |
 | DELETE | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | 204, 404, 409, 422 letzte Lieferadresse (I-1) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen` | Checkout: 201 + `Location`, 400 (keine Positionen, Menge < 1), 404 (Kunde, Produkt, fremde Adresse), 409 Bestand, 422 (keine Lieferadresse, Gutschein abgelaufen/unbekannt), D-17 |
-| GET | `/api/v1/kunden/{kundenId}/bestellungen` | Bestellhistorie (US-04.2): Nummer, Datum, Anzahl Positionen, Gesamtwert; neueste zuerst; 404 unbekannter Kunde |
-| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen; 404 auch bei fremder Bestellung |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen` | Bestellhistorie (US-04.2): Nummer, Datum, Anzahl Positionen, Gesamtwert, offener Betrag, `istVollstaendigBezahlt`; neueste zuerst; 404 unbekannter Kunde |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen, `bezahlteSumme`, `offenerBetrag`, `istVollstaendigBezahlt` (US-05.1); 404 auch bei fremder Bestellung |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}` | eine Buchung; 404 bei fremder Bestellung oder Buchung |
+| PUT | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status` | `{transaktionsstatus}`: 200, 400, 404, 409 Versionskonflikt, 422 (nicht mehr `AUSSTEHEND` oder Ziel `AUSSTEHEND`, D-19) |
+| POST | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen` | `{zahlungsart, betrag}`: 201 + `Location` (Buchung), 400 (Betrag 0, Pflichtfelder), 404, 409, 422 über erstattbar (D-19) |
 
 ## Datenfluss (Beispiel Produkt anlegen)
 
@@ -108,6 +111,22 @@ POST /kunden/{id}/bestellungen ─ BestellungController (@Valid BestellungAufgeb
 
 Jede Ablehnung wirft vor dem Commit; die Transaktion rollt zurück, kein Bestand ändert sich.
 
+## Datenfluss (Zahlungsstatus und Erstattung, D-19)
+
+```
+PUT …/zahlungen/{id}/status ─ ZahlungController (@Valid StatusAenderungDto)
+  → BestellungService.aendereZahlungsstatus (@Transactional)
+      findeMitZahlungen (404) → lock OPTIMISTIC_FORCE_INCREMENT
+      Bestellung.aendereZahlungsstatus → Zahlung.aendereStatus(status, Instant aus Clock)   422
+  ← 200 ZahlungDto; beim Commit UPDATE zahlung, UPDATE bestellung.version (409 bei Konflikt)
+
+POST …/erstattungen ─ ZahlungController (@Valid ErstattungBuchenDto)
+  → BestellungService.bucheErstattung → Bestellung.bucheErstattung (≤ erstattbar, sonst 422)
+  ← 201 ZahlungDto + Location …/zahlungen/{id}; INSERT zahlung (AUSSTEHEND)
+```
+
+Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abruf aus den Buchungen berechnet (D-01, D-05).
+
 ## Querschnitt
 
 ### Geld (D-11)
@@ -136,6 +155,11 @@ Jede Ablehnung wirft vor dem Commit; die Transaktion rollt zurück, kein Bestand
 - `Kunde` trägt `@Version`. Jede Adressbuch-Operation sperrt ihn mit `OPTIMISTIC_FORCE_INCREMENT`, damit auch eine reine Feldänderung an einer `Adresse` die Version erhöht.
 - Zwei gleichzeitige Änderungen, die zusammen I-1 verletzen würden (z. B. beide Lieferadressen löschen), scheitern für die zweite mit 409 Versionskonflikt.
 - Gleichzeitige Registrierung derselben E-Mail: der Unique-Constraint `kunde_email_eindeutig` greift, `saveAndFlush` übersetzt die Verletzung in 409.
+
+### Nebenläufigkeit bei Buchungen (D-19)
+
+- Statuswechsel und Erstattung sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT`, auch wenn sich nur eine `Zahlung` ändert.
+- Zwei gleichzeitige Erstattungen, die zusammen den erstattbaren Betrag übersteigen würden, scheitern für die zweite mit 409 Versionskonflikt.
 
 ### Nebenläufigkeit im Checkout (D-09, ADR 0003)
 
@@ -189,7 +213,7 @@ Jede Ablehnung wirft vor dem Commit; die Transaktion rollt zurück, kein Bestand
 | Tabelle `gutschein` | `id` UUID, `code` (≤ 50, normalisiert, UNIQUE `gutschein_code_eindeutig`), `rabatt_art`, `prozent` NUMERIC(5,2) oder `festbetrag_cent`, `ablaufdatum`; CHECK passend zur Rabattart (D-04) |
 | Tabelle `bestellung` | `bestellnummer` PK, `version`, `kunde_id` (FK, Index), `bestelldatum`, `faellig_am`, `liefer_strasse`/`_stadt`/`_postleitzahl`/`_land` (Snapshot, D-08), `gutschein_id` (FK, nullable), `rabatt_betrag_cent` (≥ 0); kein gespeicherter Gesamtwert (D-01) |
 | Tabelle `bestellposition` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`), `zeilennummer` (≥ 1), `produkt_id` (FK, Index), `menge` (≥ 1), `einzelpreis_cent` (≥ 0); UNIQUE je Bestellung auf Zeilennummer und Produkt (I-6) |
-| Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, D-17) |
+| Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, gesetzt bei `ERFOLGREICH`, D-17, D-19) |
 
 ### Migrationen
 
@@ -227,8 +251,8 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | `src/app/bestellung/warenkorb.ts` | `Warenkorb` (Signals, nur im Speicher, D-18): `lege` (fasst zusammen), `aendereMenge`, `entferne`, `leere`, `stueckzahl` |
 | `src/app/bestellung/bezeichnungen.ts` | deutsche Namen für Zahlungsart und Transaktionsstatus |
 | `src/app/bestellung/checkout` | `/checkout`: Warenkorb ohne Summen, Kunde wählen, Lieferadressen des Kunden (`switchMap`), Zahlungsart, Gutscheincode; 409/422 als Meldung, Eingaben bleiben; Erfolg leert den Warenkorb |
-| `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht, mit `?aufgegeben=ja` zugleich Bestätigung |
-| `src/app/bestellung/bestellhistorie` | `<app-bestellhistorie>`: Liste mit Link zur Bestellansicht, Laden, Fehler, Leerzustand |
+| `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht mit Bezahlstatus, bezahlter Summe, offenem Betrag und Buchungen (Erstattungen gekennzeichnet; US-05.1, D-19), mit `?aufgegeben=ja` zugleich Bestätigung |
+| `src/app/bestellung/bestellhistorie` | `<app-bestellhistorie>`: Liste mit Link zur Bestellansicht und Bezahlstatus („bezahlt“ oder „offen: Betrag“), Laden, Fehler, Leerzustand |
 | `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`, `.zahl`, `.unsichtbar`) |
 
 - `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
@@ -245,10 +269,13 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Domain-Unit Kunde | JUnit 5, AssertJ | `KundeTest` (US-01.1 bis US-01.3), `EmailTest` (D-13, D-16) |
 | API-Integration Kunde | MockMvc, PostgreSQL | `KundeApiIT` (alle AK US-01.1 bis US-01.3 über HTTP) |
 | Domain-Unit Checkout | JUnit 5, AssertJ | `BestellungTest` (US-04.1 AK1–8, US-08.1 AK1–9), `GutscheinTest` (US-08.1, D-04, D-17) |
-| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie ebenfalls 2 Abfragen bei 1 und 3 Bestellungen; Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
+| Domain-Unit Zahlungen | JUnit 5, AssertJ | `BezahlstatusTest` (US-05.1 AK1–7, Statusübergänge und Erstattungsgrenze D-19) |
+| API-Integration Zahlungen | MockMvc, PostgreSQL, feste Uhr | `ZahlungApiIT` (US-05.1 AK1/2/4/5/7 über HTTP, Historie mit Bezahlstatus, Statuscodes D-19, `Location`) |
+| Nebenläufigkeit Erstattung | `TransactionTemplate`, Latches | `ErstattungNebenlaeufigkeitIT` (zwei Erstattungen über je 60 € auf 100 €: genau eine) |
+| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie 3 Abfragen bei 1 und 3 Bestellungen (Kunde, Positionen, Zahlungen); Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
 | Nebenläufigkeit Checkout | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `BestellungNebenlaeufigkeitIT` (letzte Lampe: genau einer; genug Bestand: beide) |
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts`, `bestellhistorie.spec.ts` (US-04.2), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5), `bestellhistorie.spec.ts` (US-04.2, D-19), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

@@ -10,6 +10,9 @@
     "description" : "Aktueller Host"
   } ],
   "tags" : [ {
+    "description" : "Zahlungsstatus und Erstattungen (E05, D-19)",
+    "name" : "Zahlungen"
+  }, {
     "description" : "Kundenkonto (E01)",
     "name" : "Kunden"
   }, {
@@ -547,6 +550,239 @@
         "tags" : [ "Bestellungen" ]
       }
     },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen" : {
+      "post" : {
+        "description" : "Entsteht mit Status AUSSTEHEND; höchstens bezahlte Summe abzüglich ausstehender Erstattungen.",
+        "operationId" : "bucheErstattung",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ErstattungBuchen"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Zahlung"
+                }
+              }
+            },
+            "description" : "Angelegt, Location zeigt auf die Buchung"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Ungültige Eingabe, z. B. Betrag 0 oder Zahlungsart fehlt"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung existiert nicht oder gehört einem anderen Kunden"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Versionskonflikt durch gleichzeitige Buchung"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Betrag übersteigt den erstattbaren Betrag"
+          }
+        },
+        "summary" : "Erstattung buchen (D-19)",
+        "tags" : [ "Zahlungen" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}" : {
+      "get" : {
+        "operationId" : "findeZahlung",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "zahlungId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Zahlung"
+                }
+              }
+            },
+            "description" : "Gefunden"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung oder Buchung existiert nicht oder gehört nicht dazu"
+          }
+        },
+        "summary" : "Eine Buchung der Bestellung",
+        "tags" : [ "Zahlungen" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status" : {
+      "put" : {
+        "description" : "Nur aus AUSSTEHEND nach ERFOLGREICH, FEHLGESCHLAGEN oder STORNIERT. ERFOLGREICH setzt den Zahlungszeitpunkt.",
+        "operationId" : "aendereZahlungsstatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "bestellnummer",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "zahlungId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/StatusAenderung"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Zahlung"
+                }
+              }
+            },
+            "description" : "Geändert"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Status fehlt oder ist unbekannt"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestellung oder Buchung existiert nicht oder gehört nicht dazu"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Versionskonflikt durch gleichzeitige Buchung"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Buchung ist nicht mehr AUSSTEHEND oder Ziel ist AUSSTEHEND"
+          }
+        },
+        "summary" : "Status einer Zahlung oder Erstattung ändern (D-19)",
+        "tags" : [ "Zahlungen" ]
+      }
+    },
     "/api/v1/produkte" : {
       "get" : {
         "operationId" : "listeProdukte",
@@ -877,6 +1113,10 @@
             "type" : "string",
             "example" : "B-2026-000123"
           },
+          "bezahlteSumme" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "Σ erfolgreiche Zahlungen − Σ erfolgreiche Erstattungen (D-05)"
+          },
           "faelligAm" : {
             "type" : "string",
             "format" : "date",
@@ -890,6 +1130,10 @@
             "type" : "string",
             "description" : "Eingelöster Gutschein, leer ohne Gutschein"
           },
+          "istVollstaendigBezahlt" : {
+            "type" : "boolean",
+            "description" : "bezahlteSumme ≥ gesamtwert (D-05)"
+          },
           "kundenId" : {
             "type" : "string",
             "format" : "uuid"
@@ -897,6 +1141,10 @@
           "lieferanschrift" : {
             "$ref" : "#/components/schemas/Anschrift",
             "description" : "Snapshot zum Checkout (D-08)"
+          },
+          "offenerBetrag" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "max(0, gesamtwert − bezahlteSumme) (D-05)"
           },
           "positionen" : {
             "type" : "array",
@@ -919,7 +1167,7 @@
             }
           }
         },
-        "required" : [ "bestelldatum", "bestellnummer", "faelligAm", "gesamtwert", "kundenId", "lieferanschrift", "positionen", "rabattBetrag", "warenwert", "zahlungen" ]
+        "required" : [ "bestelldatum", "bestellnummer", "bezahlteSumme", "faelligAm", "gesamtwert", "istVollstaendigBezahlt", "kundenId", "lieferanschrift", "offenerBetrag", "positionen", "rabattBetrag", "warenwert", "zahlungen" ]
       },
       "BestellungAufgeben" : {
         "type" : "object",
@@ -971,9 +1219,32 @@
           "gesamtwert" : {
             "$ref" : "#/components/schemas/Geld",
             "description" : "max(0, warenwert − rabattBetrag), berechnet (D-01)"
+          },
+          "istVollstaendigBezahlt" : {
+            "type" : "boolean",
+            "description" : "bezahlteSumme ≥ gesamtwert (D-05)"
+          },
+          "offenerBetrag" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "max(0, gesamtwert − bezahlteSumme) (D-05)"
           }
         },
-        "required" : [ "anzahlPositionen", "bestelldatum", "bestellnummer", "gesamtwert" ]
+        "required" : [ "anzahlPositionen", "bestelldatum", "bestellnummer", "gesamtwert", "istVollstaendigBezahlt", "offenerBetrag" ]
+      },
+      "ErstattungBuchen" : {
+        "type" : "object",
+        "description" : "Erstattung, entsteht mit Status AUSSTEHEND (D-19)",
+        "properties" : {
+          "betrag" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "Größer 0, höchstens der erstattbare Betrag"
+          },
+          "zahlungsart" : {
+            "type" : "string",
+            "enum" : [ "KREDITKARTE", "PAYPAL", "LASTSCHRIFT", "RECHNUNG", "VORKASSE" ]
+          }
+        },
+        "required" : [ "betrag", "zahlungsart" ]
       },
       "Geld" : {
         "type" : "object",
@@ -1178,6 +1449,18 @@
           }
         },
         "required" : [ "email", "lieferadresse", "nachname", "vorname" ]
+      },
+      "StatusAenderung" : {
+        "type" : "object",
+        "description" : "Neuer Status einer Buchung; nur aus AUSSTEHEND möglich (D-19)",
+        "properties" : {
+          "transaktionsstatus" : {
+            "type" : "string",
+            "enum" : [ "AUSSTEHEND", "ERFOLGREICH", "FEHLGESCHLAGEN", "STORNIERT" ],
+            "example" : "ERFOLGREICH"
+          }
+        },
+        "required" : [ "transaktionsstatus" ]
       },
       "Verfuegbarkeit" : {
         "type" : "object",

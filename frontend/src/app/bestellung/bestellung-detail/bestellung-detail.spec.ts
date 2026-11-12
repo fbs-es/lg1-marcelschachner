@@ -45,6 +45,9 @@ const BESTELLUNG: Bestellung = {
       transaktionsstatus: 'AUSSTEHEND',
     },
   ],
+  bezahlteSumme: euro(0),
+  offenerBetrag: euro(4950),
+  istVollstaendigBezahlt: false,
 };
 
 describe('BestellungDetail', () => {
@@ -102,6 +105,62 @@ describe('BestellungDetail', () => {
       'Rechnung: 49,50 €, ausstehend',
     );
     expect(text()).not.toContain('wurde aufgegeben');
+  });
+
+  it('US-05.1 AK1: zeigt offenen Bezahlstatus und offenen Betrag vom Backend', async () => {
+    await erzeugen();
+    http.expectOne(URL).flush(BESTELLUNG);
+    await fixture.whenStable();
+
+    expect(element.querySelector('.bezahlstatus .status')!.textContent).toContain('offen');
+    expect(element.querySelector('.bezahlstatus .status')!.classList).not.toContain('bezahlt');
+    expect(element.querySelector('.bezahlt-summe')!.textContent).toContain('0,00 €');
+    expect(element.querySelector('.offen')!.textContent).toContain('49,50 €');
+  });
+
+  it('US-05.1 AK5: zeigt Erstattung, bezahlte Summe und Restbetrag', async () => {
+    await erzeugen();
+    http.expectOne(URL).flush({
+      ...BESTELLUNG,
+      zahlungen: [
+        { ...BESTELLUNG.zahlungen[0], transaktionsstatus: 'ERFOLGREICH' },
+        {
+          id: 'z2',
+          betrag: euro(1000),
+          zahlungsart: 'RECHNUNG',
+          buchungsart: 'ERSTATTUNG',
+          transaktionsstatus: 'ERFOLGREICH',
+        },
+      ],
+      bezahlteSumme: euro(3950),
+      offenerBetrag: euro(1000),
+    } satisfies Bestellung);
+    await fixture.whenStable();
+
+    const zahlungen = element.querySelectorAll('.zahlungen li');
+    expect(zahlungen[0].textContent).toContain('Rechnung: 49,50 €, erfolgreich');
+    expect(zahlungen[1].textContent!.replace(/[ \n]+/g, ' ')).toContain(
+      'Erstattung Rechnung: 10,00 €, erfolgreich',
+    );
+    expect(element.querySelector('.bezahlt-summe')!.textContent).toContain('39,50 €');
+    expect(element.querySelector('.offen')!.textContent).toContain('10,00 €');
+  });
+
+  it('US-05.1 AK2: zeigt vollständig bezahlt', async () => {
+    await erzeugen();
+    http.expectOne(URL).flush({
+      ...BESTELLUNG,
+      zahlungen: [{ ...BESTELLUNG.zahlungen[0], transaktionsstatus: 'ERFOLGREICH' }],
+      bezahlteSumme: euro(4950),
+      offenerBetrag: euro(0),
+      istVollstaendigBezahlt: true,
+    } satisfies Bestellung);
+    await fixture.whenStable();
+
+    const status = element.querySelector('.bezahlstatus .status')!;
+    expect(status.textContent).toContain('vollständig bezahlt');
+    expect(status.classList).toContain('bezahlt');
+    expect(element.querySelector('.offen')!.textContent).toContain('0,00 €');
   });
 
   it('zeigt ohne Gutschein keine Rabattzeile', async () => {

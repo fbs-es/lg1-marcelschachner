@@ -500,14 +500,14 @@ class BestellungApiIT {
         }
 
         @Test
-        @DisplayName("US-04.2: Historie braucht unabhängig von der Bestellanzahl 2 Abfragen")
+        @DisplayName("US-04.2, D-19: Historie braucht unabhängig von der Bestellanzahl 3 Abfragen")
         void historieOhneNPlusEins() throws Exception {
             gibAuf(einBuch(), null).andExpect(status().isCreated());
-            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(2);
+            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(3);
 
             gibAuf(zweiBuecherEineLampe(), "HERBST10").andExpect(status().isCreated());
             gibAuf(einBuch(), null).andExpect(status().isCreated());
-            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(2);
+            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(3);
         }
     }
 

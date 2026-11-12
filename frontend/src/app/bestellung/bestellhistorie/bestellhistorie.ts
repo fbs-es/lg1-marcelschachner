@@ -8,7 +8,7 @@ import { problemMeldung } from '../../gemeinsam/problem-meldung';
 
 type Zustand = 'laedt' | 'fehler' | 'geladen';
 
-/** Bestellhistorie eines Kunden, Reihenfolge vom Backend (US-04.2). */
+/** Bestellhistorie eines Kunden mit Bezahlstatus, Reihenfolge vom Backend (US-04.2, D-19). */
 @Component({
   selector: 'app-bestellhistorie',
   imports: [RouterLink, DatePipe, GeldPipe],
@@ -35,6 +35,7 @@ type Zustand = 'laedt' | 'fehler' | 'geladen';
                 <th scope="col">Bestelldatum</th>
                 <th scope="col" class="zahl">Positionen</th>
                 <th scope="col" class="zahl">Gesamtwert</th>
+                <th scope="col">Bezahlstatus</th>
               </tr>
             </thead>
             <tbody>
@@ -55,6 +56,13 @@ type Zustand = 'laedt' | 'fehler' | 'geladen';
                   <td>{{ bestellung.bestelldatum | date: 'dd.MM.yyyy' }}</td>
                   <td class="zahl">{{ bestellung.anzahlPositionen }}</td>
                   <td class="zahl">{{ bestellung.gesamtwert | geld }}</td>
+                  <td class="bezahlstatus">
+                    @if (bestellung.istVollstaendigBezahlt) {
+                      bezahlt
+                    } @else {
+                      offen: {{ bestellung.offenerBetrag | geld }}
+                    }
+                  </td>
                 </tr>
               }
             </tbody>

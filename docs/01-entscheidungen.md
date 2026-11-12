@@ -248,3 +248,21 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Bestellhistorie (US-04.2): `GET /api/v1/kunden/{kundenId}/bestellungen` mit Bestellnummer, Bestelldatum, Anzahl Positionen und Gesamtwert; sortiert nach Bestelldatum absteigend, dann Bestellnummer absteigend (numerisch, D-14); 404 bei unbekanntem Kunden. Sie steht auf der Kundenseite unter dem Adressbuch.
 
 **Nicht im Umfang (Schritt 4b):** Warenkorb über Neuladen hinweg, Vorschau von Rabatt und Gesamtwert vor dem Bestellen, Bezahlstatus in der Historie (Schritt 5), Seitenaufteilung.
+
+---
+
+## D-19 Zahlungsstatus ändern und Erstattung buchen
+
+**Problem:** E05 nennt Statuswechsel und Erstattungen, die Stories US-05.2 und US-05.3 sind aber nur Kandidaten. Offen waren erlaubte Übergänge, Ablauf und Obergrenze einer Erstattung sowie der Umfang im Frontend.
+
+**Entscheidung:**
+- Ein Status lässt sich nur **aus `AUSSTEHEND`** ändern, und zwar nach `ERFOLGREICH`, `FEHLGESCHLAGEN` oder `STORNIERT`. Diese drei sind endgültig; jeder andere Wechsel (auch `AUSSTEHEND` → `AUSSTEHEND`) wird mit 422 abgelehnt. Das gilt für Zahlungen und Erstattungen gleichermaßen.
+- Der `zahlungszeitpunkt` wird aus der Uhr gesetzt, wenn eine Buchung `ERFOLGREICH` wird, und bleibt bei `FEHLGESCHLAGEN` und `STORNIERT` leer (präzisiert D-17).
+- Eine Erstattung entsteht mit Status `AUSSTEHEND` und wird über denselben Statuswechsel abgeschlossen. Zahlungsart und Betrag gibt der Aufrufer an.
+- Betrag einer Erstattung: > 0 (sonst 400) und ≤ **erstattbarer Betrag** = `bezahlteSumme − Σ AUSSTEHEND-ERSTATTUNG` (sonst 422). So kann `bezahlteSumme` nie negativ werden.
+- Statuswechsel und Erstattung erhöhen die Version der Bestellung (`OPTIMISTIC_FORCE_INCREMENT`); gleichzeitige Buchungen auf derselben Bestellung scheitern für die zweite mit 409.
+- Teilzahlungen sind weitere Buchungen `ZAHLUNG` mit Status `AUSSTEHEND` (Domäne); ein Endpunkt dafür folgt mit US-05.2.
+- API: `PUT …/bestellungen/{nr}/zahlungen/{zahlungId}/status`, `POST …/bestellungen/{nr}/erstattungen` (201 + `Location` auf `GET …/zahlungen/{zahlungId}`). Bestellung und Historie liefern `bezahlteSumme`, `offenerBetrag` und `istVollstaendigBezahlt`.
+- Frontend: Bestellansicht zeigt Bezahlstatus, bezahlte Summe und offenen Betrag; die Historie zeigt je Bestellung „bezahlt“ oder den offenen Betrag. Bedienelemente für Statuswechsel und Erstattung gibt es noch nicht.
+
+**Nicht im Umfang (Schritt 5):** Zahlungsanbieter-Anbindung, Endpunkt für Teilzahlungen, Bedienung im Frontend.

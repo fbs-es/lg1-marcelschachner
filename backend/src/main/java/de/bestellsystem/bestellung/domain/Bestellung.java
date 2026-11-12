@@ -4,8 +4,11 @@ import de.bestellsystem.gemeinsam.domain.Anschrift;
 import de.bestellsystem.gemeinsam.domain.FachlicheAblehnungException;
 import de.bestellsystem.gemeinsam.domain.Geld;
 import de.bestellsystem.gemeinsam.domain.KonfliktException;
+import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
 import de.bestellsystem.gutschein.domain.Gutschein;
 import de.bestellsystem.katalog.domain.Produkt;
+import de.bestellsystem.zahlung.domain.Buchungsart;
+import de.bestellsystem.zahlung.domain.Transaktionsstatus;
 import de.bestellsystem.zahlung.domain.Zahlung;
 import de.bestellsystem.zahlung.domain.Zahlungsart;
 import jakarta.persistence.AttributeOverride;
@@ -22,6 +25,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
@@ -32,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * Aufgegebene Bestellung; Aggregatwurzel für Positionen und Zahlungen (E04, E08).
@@ -169,6 +174,75 @@ public class Bestellung {
     public Geld berechneGesamtwert() {
         Geld gesamtwert = berechneWarenwert().subtrahiere(rabattBetrag);
         return gesamtwert.istNegativ() ? Geld.NULL : gesamtwert;
+    }
+
+    /** {@code Σ ERFOLGREICH-ZAHLUNG − Σ ERFOLGREICH-ERSTATTUNG} (D-05). */
+    public Geld berechneBezahlteSumme() {
+        return summe(zahlung -> zahlung.istErfolgreich() && !zahlung.istErstattung())
+                .subtrahiere(summe(zahlung -> zahlung.istErfolgreich() && zahlung.istErstattung()));
+    }
+
+    /** {@code max(0, gesamtwert − bezahlteSumme)} (D-05). */
+    public Geld berechneOffenenBetrag() {
+        Geld offen = berechneGesamtwert().subtrahiere(berechneBezahlteSumme());
+        return offen.istNegativ() ? Geld.NULL : offen;
+    }
+
+    /** {@code bezahlteSumme ≥ gesamtwert} (D-05). */
+    public boolean istVollstaendigBezahlt() {
+        return berechneBezahlteSumme().compareTo(berechneGesamtwert()) >= 0;
+    }
+
+    /** {@code bezahlteSumme − Σ AUSSTEHEND-ERSTATTUNG} (D-19). */
+    public Geld berechneErstattbarenBetrag() {
+        return berechneBezahlteSumme()
+                .subtrahiere(summe(zahlung -> zahlung.istAusstehend() && zahlung.istErstattung()));
+    }
+
+    private Geld summe(Predicate<Zahlung> auswahl) {
+        return zahlungen.stream()
+                .filter(auswahl)
+                .map(Zahlung::getBetrag)
+                .reduce(Geld.NULL, Geld::addiere);
+    }
+
+    /** Weitere Zahlung, z. B. Teilzahlung (E05); entsteht AUSSTEHEND. */
+    public Zahlung bucheZahlung(Zahlungsart zahlungsart, Geld betrag) {
+        Zahlung zahlung = Zahlung.ausstehend(zahlungsart, Buchungsart.ZAHLUNG, betrag);
+        zahlungen.add(zahlung);
+        return zahlung;
+    }
+
+    /** Erstattung, höchstens der erstattbare Betrag (D-19); entsteht AUSSTEHEND. */
+    public Zahlung bucheErstattung(Zahlungsart zahlungsart, Geld betrag) {
+        Zahlung erstattung = Zahlung.ausstehend(zahlungsart, Buchungsart.ERSTATTUNG, betrag);
+        Geld erstattbar = berechneErstattbarenBetrag();
+        if (betrag.compareTo(erstattbar) > 0) {
+            throw new FachlicheAblehnungException(
+                    "Erstattung über %s übersteigt den erstattbaren Betrag von %s."
+                            .formatted(betrag, erstattbar));
+        }
+        zahlungen.add(erstattung);
+        return erstattung;
+    }
+
+    /** Statuswechsel einer Buchung dieser Bestellung (D-19); 404 bei fremder Buchung. */
+    public Zahlung aendereZahlungsstatus(
+            UUID zahlungId, Transaktionsstatus neuerStatus, Instant zeitpunkt) {
+        Zahlung zahlung = zahlung(zahlungId);
+        zahlung.aendereStatus(neuerStatus, zeitpunkt);
+        return zahlung;
+    }
+
+    /** Buchung dieser Bestellung; 404, wenn sie nicht dazugehört. */
+    public Zahlung zahlung(UUID zahlungId) {
+        return zahlungen.stream()
+                .filter(zahlung -> zahlung.getId().equals(zahlungId))
+                .findFirst()
+                .orElseThrow(() ->
+                        new NichtGefundenException(
+                                "Zahlung %s gehört nicht zur Bestellung %s"
+                                        .formatted(zahlungId, bestellnummer)));
     }
 
     public String getBestellnummer() {

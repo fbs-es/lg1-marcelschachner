@@ -22,7 +22,10 @@ import java.util.UUID;
             "warenwert",
             "rabattBetrag",
             "gesamtwert",
-            "zahlungen"
+            "zahlungen",
+            "bezahlteSumme",
+            "offenerBetrag",
+            "istVollstaendigBezahlt"
         })
 public record BestellungDto(
         @Schema(example = "B-2026-000123") String bestellnummer,
@@ -36,7 +39,11 @@ public record BestellungDto(
         @Schema(description = "Beim Checkout eingefroren (D-04)") GeldDto rabattBetrag,
         @Schema(description = "max(0, warenwert − rabattBetrag), berechnet (D-01)")
                 GeldDto gesamtwert,
-        List<ZahlungDto> zahlungen) {
+        List<ZahlungDto> zahlungen,
+        @Schema(description = "Σ erfolgreiche Zahlungen − Σ erfolgreiche Erstattungen (D-05)")
+                GeldDto bezahlteSumme,
+        @Schema(description = "max(0, gesamtwert − bezahlteSumme) (D-05)") GeldDto offenerBetrag,
+        @Schema(description = "bezahlteSumme ≥ gesamtwert (D-05)") boolean istVollstaendigBezahlt) {
 
     static BestellungDto von(Bestellung bestellung) {
         return new BestellungDto(
@@ -50,6 +57,9 @@ public record BestellungDto(
                 bestellung.getGutschein().map(Gutschein::getCode).orElse(null),
                 GeldDto.von(bestellung.getRabattBetrag()),
                 GeldDto.von(bestellung.berechneGesamtwert()),
-                bestellung.getZahlungen().stream().map(ZahlungDto::von).toList());
+                bestellung.getZahlungen().stream().map(ZahlungDto::von).toList(),
+                GeldDto.von(bestellung.berechneBezahlteSumme()),
+                GeldDto.von(bestellung.berechneOffenenBetrag()),
+                bestellung.istVollstaendigBezahlt());
     }
 }

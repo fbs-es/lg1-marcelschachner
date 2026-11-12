@@ -76,9 +76,20 @@
       </table>
 
       <h2>Zahlung</h2>
+      <dl class="eckdaten bezahlstatus">
+        <dt>Bezahlstatus</dt>
+        <dd class="status" [class.bezahlt]="bestellung.istVollstaendigBezahlt">
+          {{ bestellung.istVollstaendigBezahlt ? 'vollständig bezahlt' : 'offen' }}
+        </dd>
+        <dt>Bezahlt</dt>
+        <dd class="bezahlt-summe">{{ bestellung.bezahlteSumme | geld }}</dd>
+        <dt>Offener Betrag</dt>
+        <dd class="offen">{{ bestellung.offenerBetrag | geld }}</dd>
+      </dl>
       <ul class="zahlungen">
         @for (zahlung of bestellung.zahlungen; track zahlung.id) {
           <li>
+            {{ zahlung.buchungsart === 'ERSTATTUNG' ? 'Erstattung' : '' }}
             {{ zahlungsartName(zahlung.zahlungsart) }}: {{ zahlung.betrag | geld }},
             {{ transaktionsstatusName(zahlung.transaktionsstatus) }}
           </li>

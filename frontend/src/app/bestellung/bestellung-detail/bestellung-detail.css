@@ -42,3 +42,12 @@ tfoot th {
   margin: 0;
   padding-left: 1.25rem;
 }
+
+.bezahlstatus .status {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bezahlstatus .status.bezahlt {
+  color: var(--gut);
+}

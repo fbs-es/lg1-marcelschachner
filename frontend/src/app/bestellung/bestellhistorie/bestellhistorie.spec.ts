@@ -12,12 +12,16 @@ const NEUESTE: BestellungUebersicht = {
   bestelldatum: '2026-11-12',
   anzahlPositionen: 1,
   gesamtwert: { cent: 1250, waehrung: 'EUR' },
+  offenerBetrag: { cent: 0, waehrung: 'EUR' },
+  istVollstaendigBezahlt: true,
 };
 const MIT_GUTSCHEIN: BestellungUebersicht = {
   bestellnummer: 'B-2026-000002',
   bestelldatum: '2026-11-12',
   anzahlPositionen: 2,
   gesamtwert: { cent: 4950, waehrung: 'EUR' },
+  offenerBetrag: { cent: 4950, waehrung: 'EUR' },
+  istVollstaendigBezahlt: false,
 };
 
 describe('Bestellhistorie', () => {
@@ -56,6 +60,15 @@ describe('Bestellhistorie', () => {
     expect(zeilen[1].textContent).toContain('12.11.2026');
     expect(zeilen[1].textContent).toContain('2');
     expect(zeilen[1].textContent).toContain('49,50 €');
+  });
+
+  it('D-19: zeigt je Bestellung bezahlt oder den offenen Betrag', async () => {
+    http.expectOne(URL).flush([NEUESTE, MIT_GUTSCHEIN]);
+    await fixture.whenStable();
+
+    const status = element.querySelectorAll('tbody .bezahlstatus');
+    expect(status[0].textContent!.trim()).toBe('bezahlt');
+    expect(status[1].textContent).toContain('offen: 49,50 €');
   });
 
   it('US-04.2 AK7: verlinkt jede Bestellung auf ihre Ansicht', async () => {

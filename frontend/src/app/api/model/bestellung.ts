@@ -16,6 +16,10 @@ export interface Bestellung {
   bestelldatum: string;
   bestellnummer: string;
   /**
+   * Σ erfolgreiche Zahlungen − Σ erfolgreiche Erstattungen (D-05)
+   */
+  bezahlteSumme: Geld;
+  /**
    * bestelldatum + Zahlungsziel (D-03)
    */
   faelligAm: string;
@@ -27,11 +31,19 @@ export interface Bestellung {
    * Eingelöster Gutschein, leer ohne Gutschein
    */
   gutscheincode?: string;
+  /**
+   * bezahlteSumme ≥ gesamtwert (D-05)
+   */
+  istVollstaendigBezahlt: boolean;
   kundenId: string;
   /**
    * Snapshot zum Checkout (D-08)
    */
   lieferanschrift: Anschrift;
+  /**
+   * max(0, gesamtwert − bezahlteSumme) (D-05)
+   */
+  offenerBetrag: Geld;
   positionen: Array<Bestellposition>;
   /**
    * Beim Checkout eingefroren (D-04)

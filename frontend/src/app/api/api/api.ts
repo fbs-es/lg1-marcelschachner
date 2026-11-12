@@ -6,4 +6,12 @@ export * from './kunden.service';
 import { KundenService } from './kunden.service';
 export * from './produkte.service';
 import { ProdukteService } from './produkte.service';
-export const APIS = [AdressbuchService, BestellungenService, KundenService, ProdukteService];
+export * from './zahlungen.service';
+import { ZahlungenService } from './zahlungen.service';
+export const APIS = [
+  AdressbuchService,
+  BestellungenService,
+  KundenService,
+  ProdukteService,
+  ZahlungenService,
+];

@@ -21,7 +21,7 @@ Werkzeug: **feature-dev** = Design offen, Architektur-Freigabe nötig · **goal*
 
 ---
 
-## [ ] 1 Fundament Backend (E00)
+## [x] 1 Fundament Backend (E00) (2026-11-12, 9aa6671)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E00-*.md`, `docs/01-entscheidungen.md` (D-08, D-11, D-13), `CLAUDE.md`

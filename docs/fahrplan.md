@@ -81,7 +81,7 @@ Backend und Frontend. US-01.1 vollständig, dazu die Kandidaten US-01.2 und US-0
 
 ---
 
-## [ ] 4a Checkout Backend (E04 + E08)
+## [x] 4a Checkout Backend (E04 + E08) (2026-11-12, 9cfb2a2)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E04-*.md`, `epics/E08-*.md`, `stories/US-04.1-*.md`, `stories/US-08.1-*.md`, D-01 bis D-04, D-08 bis D-11

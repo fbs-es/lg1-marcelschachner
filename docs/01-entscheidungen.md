@@ -282,3 +282,18 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Manuelle Auslösung, Stichtag immer heute: `POST /api/v1/kunden/{kundenId}/mahnpruefung` (ein Kunde) und `POST /api/v1/mahnlaeufe` (alle Kunden). Ohne Login sind beide offen wie die übrige API im MVP.
 
 **Nicht im Umfang (Schritt 6):** Anzeige der Mahnungen im Frontend, Nachholen ausgefallener Läufe, Sperre gegen parallele Läufe auf mehreren Instanzen.
+
+---
+
+## D-21 Merkliste im Detail: Zeitpunkt, Merken, Entfernen
+
+**Problem:** D-07 legt `hinzugefuegtAm` als Datum fest und verlangt „neueste zuerst“. Zwei am selben Tag gemerkte Produkte wären damit gleichrangig. Offen waren außerdem die Antwort beim Entfernen eines nicht gemerkten Produkts, die Form der Endpunkte und der Ort im Frontend ohne Login.
+
+**Entscheidung:**
+- Gespeichert wird der **Zeitpunkt** des Merkens (aus der Uhr). Die API liefert daraus das Merkdatum in `bestellsystem.zeitzone`. Sortiert wird nach Zeitpunkt absteigend, bei Gleichstand nach Titel. Präzisiert D-07.
+- Merken: `PUT /api/v1/kunden/{kundenId}/merkliste/{produktId}`. Neu gemerkt: **201** + `Location`. Schon gemerkt: **200**, Datum unverändert (I-4). Auch gleichzeitiges doppeltes Merken ergibt genau einen Eintrag.
+- Entfernen: `DELETE` auf denselben Pfad, immer **204**, auch wenn das Produkt nicht gemerkt war. Erneutes Merken danach setzt ein neues Datum.
+- Unbekannter Kunde: **404** bei allen Merklisten-Endpunkten. Unbekanntes Produkt beim Merken: **404**.
+- Frontend: eigene Seite `/kunden/:kundenId/merkliste`, verlinkt aus der Kundenansicht. Dort werden Produkte über eine Auswahl gemerkt und entfernt. Die Produktliste bleibt unverändert.
+
+**Nicht im Umfang (Schritt 7):** „Merken“-Knopf in der Produktliste, Übernahme in den Warenkorb.

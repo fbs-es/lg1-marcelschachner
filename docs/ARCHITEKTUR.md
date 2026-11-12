@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 6 (Mahnwesen E06: Mahnprüfung US-06.1, täglicher Mahnlauf US-06.2, D-20). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 7 (Merkliste E03: US-03.1, US-03.2, D-21). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -51,6 +51,10 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `mahnwesen.domain` | `Mahnung` (Entity, UUID, Teil der Bestellung; eingefroren `erstelltAm`, `gemahnterBetrag` > 0), `Mahnbenachrichtigung` (Empfänger, Stichtag, Positionen, `summe`), `Mahnposition` |
 | `mahnwesen.application` | `MahnService.pruefe(kundenId, stichtag)` (`@Transactional`: Kunde sperren, Bestellungen laden, `Kunde.fuehreMahnpruefungDurch`, Versand vor dem Commit), `Mahnlauf` (`@Scheduled`, `fuehreDurch(stichtag)`: je Kunde eigene Transaktion, Fehler gezählt), `Mahnlaufergebnis`, `Mahnschreiben` (Text der E-Mail) |
 | `mahnwesen.api` | `MahnwesenController`, DTOs `MahnpruefungDto`, `MahnpositionDto`, `MahnlaufDto` |
+| `merkliste.domain` | `Merklisteneintrag` (Entity, Assoziationsklasse Kunde *–* Produkt, D-07): `@EmbeddedId MerklisteneintragId` (Record `kundeId`, `produktId`, I-4), Produkt LAZY (nur lesend auf `produkt_id`), `hinzugefuegtAm` als `Instant`, `merkdatum(zeitzone)` (D-21); wird nie über `persist` angelegt |
+| `merkliste.persistence` | `MerklisteneintragRepository`: `merke` (native `INSERT … ON CONFLICT DO NOTHING`, 1 = neu, 0 = schon gemerkt), `findeMerkliste` (`JOIN FETCH` Produkt, Zeitpunkt absteigend, dann Titel), `findeEintrag`, `entferne` (JPQL-Delete, No-op ohne Eintrag) |
+| `merkliste.application` | `MerklisteService`: `merke` (404 Kunde/Produkt, Zeitpunkt aus `Clock`, liefert `Merkergebnis(eintrag, istNeu)`), `merkliste`, `eintrag` (404), `entferne` (404 nur für unbekannten Kunden) |
+| `merkliste.api` | `MerklisteController`, DTO `MerklisteneintragDto` (`produktId`, `titel`, aktueller `listenpreis`, `istVerfuegbar`, Merkdatum `hinzugefuegtAm` in `bestellsystem.zeitzone`) |
 | `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto`, `BestellungUebersichtDto` |
 
 ## REST-API
@@ -78,6 +82,10 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | PUT | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status` | `{transaktionsstatus}`: 200, 400, 404, 409 Versionskonflikt, 422 (nicht mehr `AUSSTEHEND` oder Ziel `AUSSTEHEND`, D-19) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen` | `{zahlungsart, betrag}`: 201 + `Location` (Buchung), 400 (Betrag 0, Pflichtfelder), 404, 409, 422 über erstattbar (D-19) |
 | POST | `/api/v1/kunden/{kundenId}/mahnpruefung` | Mahnprüfung, Stichtag heute: 200 `{stichtag, istGemahnt, mahnpositionen[{bestellnummer, faelligAm, offenerBetrag}]}`, 404, 409, 503 Versand gescheitert (D-20) |
+| GET | `/api/v1/kunden/{kundenId}/merkliste` | beobachtete Artikel, neueste zuerst, mit Merkdatum, aktuellem Preis und Verfügbarkeit; leere Liste; 404 unbekannter Kunde (US-03.1) |
+| PUT | `/api/v1/kunden/{kundenId}/merkliste/{produktId}` | merken: 201 + `Location` neu, 200 schon gemerkt (Datum bleibt, I-4), 404 Kunde oder Produkt (D-21) |
+| GET | `/api/v1/kunden/{kundenId}/merkliste/{produktId}` | ein Eintrag; 404 Kunde unbekannt oder nicht gemerkt |
+| DELETE | `/api/v1/kunden/{kundenId}/merkliste/{produktId}` | 204, auch wenn nicht gemerkt; 404 unbekannter Kunde (US-03.2, D-21) |
 | POST | `/api/v1/mahnlaeufe` | Mahnlauf über alle Kunden, Stichtag heute: 200 `{stichtag, gemahnteKunden, fehlgeschlageneKunden}` (US-06.2) |
 
 ## Datenfluss (Beispiel Produkt anlegen)
@@ -149,6 +157,21 @@ POST /kunden/{id}/mahnpruefung oder Mahnlauf
       Mahnschreiben → Benachrichtigungsversand.sende                 Fehler: Rollback, 503
   ← beim Commit INSERT mahnung, UPDATE bestellung.version
 ```
+
+## Datenfluss (Merkliste, D-21)
+
+```
+PUT /kunden/{id}/merkliste/{produktId} ─ MerklisteController
+  → MerklisteService.merke (@Transactional)
+      KundeService.pruefeVorhanden, ProduktService.finde                 404
+      MerklisteneintragRepository.merke(…, Instant aus Clock)            INSERT … ON CONFLICT DO NOTHING
+      findeEintrag (JOIN FETCH Produkt)
+  ← 201 + Location (neu) oder 200 (schon gemerkt, ursprüngliches Datum)
+
+GET /kunden/{id}/merkliste → pruefeVorhanden + findeMerkliste: 2 Abfragen, unabhängig von der Länge
+```
+
+Gleichzeitiges doppeltes Merken: das zweite `INSERT` wartet auf den Primärschlüssel-Index und fügt nach dem Commit des ersten nichts ein (200).
 
 ## Querschnitt
 
@@ -241,6 +264,7 @@ POST /kunden/{id}/mahnpruefung oder Mahnlauf
 | Tabelle `bestellung` | `bestellnummer` PK, `version`, `kunde_id` (FK, Index), `bestelldatum`, `faellig_am`, `liefer_strasse`/`_stadt`/`_postleitzahl`/`_land` (Snapshot, D-08), `gutschein_id` (FK, nullable), `rabatt_betrag_cent` (≥ 0); Index auf `faellig_am` (Mahnlauf); kein gespeicherter Gesamtwert (D-01) |
 | Tabelle `bestellposition` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`), `zeilennummer` (≥ 1), `produkt_id` (FK, Index), `menge` (≥ 1), `einzelpreis_cent` (≥ 0); UNIQUE je Bestellung auf Zeilennummer und Produkt (I-6) |
 | Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, gesetzt bei `ERFOLGREICH`, D-17, D-19) |
+| Tabelle `merklisteneintrag` | PK `(kunde_id, produkt_id)` (I-4), beide FK `ON DELETE CASCADE` (D-07: Produkt entfernt → Eintrag weg), `hinzugefuegt_am` TIMESTAMPTZ (D-21); Index auf `produkt_id` |
 | Tabelle `mahnung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `erstellt_am`, `gemahnter_betrag_cent` (> 0) (D-03, D-20) |
 
 ### Migrationen
@@ -252,6 +276,7 @@ POST /kunden/{id}/mahnpruefung oder Mahnlauf
 | V3 | `V3__kunde.sql` | Tabellen `kunde` und `adresse` |
 | V4 | `V4__gutschein_bestellung_zahlung.sql` | Tabellen `gutschein`, `bestellung`, `bestellposition`, `zahlung` |
 | V5 | `V5__mahnung.sql` | Tabelle `mahnung`, Index `bestellung_faellig_am_idx` |
+| V6 | `V6__merklisteneintrag.sql` | Tabelle `merklisteneintrag` |
 
 ## Lokale Infrastruktur
 
@@ -282,6 +307,7 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | `src/app/bestellung/checkout` | `/checkout`: Warenkorb ohne Summen, Kunde wählen, Lieferadressen des Kunden (`switchMap`), Zahlungsart, Gutscheincode; 409/422 als Meldung, Eingaben bleiben; Erfolg leert den Warenkorb |
 | `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht mit Bezahlstatus, bezahlter Summe, offenem Betrag und Buchungen (Erstattungen gekennzeichnet; US-05.1, D-19), mit `?aufgegeben=ja` zugleich Bestätigung |
 | `src/app/bestellung/bestellhistorie` | `<app-bestellhistorie>`: Liste mit Link zur Bestellansicht und Bezahlstatus („bezahlt“ oder „offen: Betrag“), Laden, Fehler, Leerzustand |
+| `src/app/merkliste/merkliste` | `/kunden/:kundenId/merkliste` (Link in der Kundenansicht): Einträge in Backend-Reihenfolge mit Merkdatum, Preis, Verfügbarkeit, „Entfernen“; Produktauswahl + „Merken“; Laden, Fehler mit Wiederholen, Leerzustand, Aktionsfehler als ProblemDetail-Meldung (US-03.1, US-03.2, D-21) |
 | `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`, `.zahl`, `.unsichtbar`) |
 
 - `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
@@ -302,9 +328,10 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | API-Integration Zahlungen | MockMvc, PostgreSQL, feste Uhr | `ZahlungApiIT` (US-05.1 AK1/2/4/5/7 über HTTP, Historie mit Bezahlstatus, Statuscodes D-19, `Location`) |
 | Nebenläufigkeit Erstattung | `TransactionTemplate`, Latches | `ErstattungNebenlaeufigkeitIT` (zwei Erstattungen über je 60 € auf 100 €: genau eine) |
 | API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie 3 Abfragen bei 1 und 3 Bestellungen (Kunde, Positionen, Zahlungen); Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
+| API-Integration Merkliste | MockMvc, PostgreSQL, `VerstellbareUhrKonfiguration` (Uhr je Test verstellbar) | `MerklisteApiIT` (US-03.1 AK1–5, US-03.2 AK1–5, gleichzeitiges Merken, Zeitzone des Merkdatums, 2 Abfragen beim Abruf, Kaskade D-07) |
 | Nebenläufigkeit Checkout | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `BestellungNebenlaeufigkeitIT` (letzte Lampe: genau einer; genug Bestand: beide) |
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5), `bestellhistorie.spec.ts` (US-04.2, D-19), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

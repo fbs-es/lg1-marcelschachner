@@ -96,6 +96,13 @@ describe('KundeDetail', () => {
     expect(karten()[1].textContent).toContain('Rechnungsadresse');
   });
 
+  it('US-03.1: verlinkt die Merkliste des Kunden', async () => {
+    await geladen();
+
+    const link = [...element.querySelectorAll('a')].find((a) => a.textContent === 'Merkliste');
+    expect(link!.getAttribute('href')).toBe('/kunden/k1/merkliste');
+  });
+
   it('zeigt einen unbekannten Kunden als Fehler', async () => {
     http
       .expectOne('/api/v1/kunden/k1')

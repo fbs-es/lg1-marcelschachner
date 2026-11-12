@@ -31,6 +31,11 @@ export const routes: Routes = [
     loadComponent: () => import('./kunde/kunde-detail/kunde-detail').then((m) => m.KundeDetail),
   },
   {
+    path: 'kunden/:kundenId/merkliste',
+    title: 'Merkliste',
+    loadComponent: () => import('./merkliste/merkliste').then((m) => m.Merkliste),
+  },
+  {
     path: 'kunden/:kundenId/bestellungen/:bestellnummer',
     title: 'Bestellung',
     loadComponent: () =>

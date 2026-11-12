@@ -27,6 +27,9 @@
   }, {
     "description" : "Mahnprüfung und Mahnlauf (E06)",
     "name" : "Mahnwesen"
+  }, {
+    "description" : "Gemerkte Produkte eines Kunden (E03, D-07, D-21)",
+    "name" : "Merkliste"
   } ],
   "paths" : {
     "/api/v1/kunden" : {
@@ -845,6 +848,187 @@
         "tags" : [ "Mahnwesen" ]
       }
     },
+    "/api/v1/kunden/{kundenId}/merkliste" : {
+      "get" : {
+        "description" : "Liefert Merkdatum, aktuellen Listenpreis und aktuelle Verfügbarkeit; leere Liste, wenn nichts gemerkt ist.",
+        "operationId" : "listeMerkliste",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Merklisteneintrag"
+                  }
+                }
+              }
+            },
+            "description" : "Merkliste, ggf. leer"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Kunde existiert nicht"
+          }
+        },
+        "summary" : "Beobachtete Artikel, neueste zuerst (US-03.1)",
+        "tags" : [ "Merkliste" ]
+      }
+    },
+    "/api/v1/kunden/{kundenId}/merkliste/{produktId}" : {
+      "delete" : {
+        "description" : "Auch wenn das Produkt nicht gemerkt war: 204, nichts ändert sich (D-21).",
+        "operationId" : "entferneVonMerkliste",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Entfernt oder war nicht gemerkt"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Kunde existiert nicht"
+          }
+        },
+        "summary" : "Produkt von der Merkliste entfernen (US-03.2)",
+        "tags" : [ "Merkliste" ]
+      },
+      "get" : {
+        "operationId" : "findeMerklisteneintrag",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Merklisteneintrag"
+                }
+              }
+            },
+            "description" : "Gefunden"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Kunde existiert nicht oder Produkt steht nicht auf der Merkliste"
+          }
+        },
+        "summary" : "Ein Eintrag der Merkliste",
+        "tags" : [ "Merkliste" ]
+      },
+      "put" : {
+        "description" : "Merkt das Produkt mit heutigem Datum. Ist es schon gemerkt, bleibt der Eintrag mit seinem ursprünglichen Datum unverändert (I-4, D-21).",
+        "operationId" : "merkeProdukt",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "kundenId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Merklisteneintrag"
+                }
+              }
+            },
+            "description" : "War schon gemerkt, unverändert"
+          },
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Merklisteneintrag"
+                }
+              }
+            },
+            "description" : "Neu gemerkt, Location zeigt auf den Eintrag"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Kunde oder Produkt existiert nicht"
+          }
+        },
+        "summary" : "Produkt merken (US-03.1)",
+        "tags" : [ "Merkliste" ]
+      }
+    },
     "/api/v1/mahnlaeufe" : {
       "post" : {
         "description" : "Läuft sonst täglich zeitgesteuert. Fehler bei einzelnen Kunden brechen den Lauf nicht ab und werden gezählt.",
@@ -1468,6 +1652,33 @@
           }
         },
         "required" : [ "istGemahnt", "mahnpositionen", "stichtag" ]
+      },
+      "Merklisteneintrag" : {
+        "type" : "object",
+        "description" : "Gemerktes Produkt mit aktuellem Preis und aktueller Verfügbarkeit (D-07)",
+        "properties" : {
+          "hinzugefuegtAm" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Merkdatum in der Zeitzone des Shops (D-21)"
+          },
+          "istVerfuegbar" : {
+            "type" : "boolean",
+            "description" : "Lagerbestand > 0 (D-09)"
+          },
+          "listenpreis" : {
+            "$ref" : "#/components/schemas/Geld",
+            "description" : "Aktueller Listenpreis"
+          },
+          "produktId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "titel" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "hinzugefuegtAm", "istVerfuegbar", "listenpreis", "produktId", "titel" ]
       },
       "Positionswunsch" : {
         "type" : "object",

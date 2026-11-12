@@ -13,6 +13,7 @@ export * from './lagerbestand';
 export * from './mahnlauf';
 export * from './mahnposition';
 export * from './mahnpruefung';
+export * from './merklisteneintrag';
 export * from './positionswunsch';
 export * from './problem-detail';
 export * from './produkt';

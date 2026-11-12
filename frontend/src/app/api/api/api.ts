@@ -6,6 +6,8 @@ export * from './kunden.service';
 import { KundenService } from './kunden.service';
 export * from './mahnwesen.service';
 import { MahnwesenService } from './mahnwesen.service';
+export * from './merkliste.service';
+import { MerklisteService } from './merkliste.service';
 export * from './produkte.service';
 import { ProdukteService } from './produkte.service';
 export * from './zahlungen.service';
@@ -15,6 +17,7 @@ export const APIS = [
   BestellungenService,
   KundenService,
   MahnwesenService,
+  MerklisteService,
   ProdukteService,
   ZahlungenService,
 ];

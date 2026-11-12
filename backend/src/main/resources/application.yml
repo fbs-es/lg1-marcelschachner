@@ -12,11 +12,18 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  web:
+    # Deutscher Shop: Validierungsmeldungen immer deutsch, unabhängig von Accept-Language
+    locale: de
+    locale-resolver: fixed
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
 
 springdoc:
+  writer-with-order-by-keys: true
+  default-produces-media-type: application/json
+  paths-to-match: /api/**
   swagger-ui:
     path: /swagger-ui.html
 

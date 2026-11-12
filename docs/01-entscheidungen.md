@@ -175,3 +175,17 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Lücken (z. B. nach abgebrochenem Checkout) sind zulässig; verlangt ist nur Eindeutigkeit.
 
 **Begründung:** Nebenläufig sicher ohne eigene Sperrlogik, auch über mehrere Instanzen.
+
+---
+
+## D-15 Produktdaten beim Anlegen
+
+**Problem:** Das Domänenmodell nennt `titel`, `listenpreis` und `lagerbestand`, aber keine Regeln für gültige Werte.
+
+**Entscheidung:**
+- `titel` wird getrimmt, ist Pflicht und höchstens **200 Zeichen** lang. Er muss **nicht eindeutig** sein.
+- `listenpreis` ≥ 0 Cent (0 € ist erlaubt, z. B. Gratisartikel).
+- `lagerbestand` ≥ 0 bereits beim Anlegen (I-7).
+- Verstöße sind ungültige Eingaben (HTTP 400).
+
+**Nicht im Umfang (Schritt 2):** Titel und Listenpreis ändern (US-02.2), Bestandsbuchungen mit Historie (US-02.3).

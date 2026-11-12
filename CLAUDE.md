@@ -39,7 +39,8 @@ cd backend && ./gradlew build                # Build + alle Tests + Spotless-Che
 cd backend && ./gradlew bootRun              # API auf :8080, Swagger UI unter /swagger-ui.html
 cd frontend && npm ci && npm start           # Angular auf :4200, Proxy auf :8080
 cd frontend && npm test                      # Frontend-Tests
-cd frontend && npm run generate:api          # Client aus laufender OpenAPI neu erzeugen
+cd backend && ./gradlew aktualisiereOpenApi  # frontend/openapi.json aus dem Code exportieren (ADR 0002)
+cd frontend && npm run generate:api          # Client aus frontend/openapi.json neu erzeugen
 ```
 
 Befehle entstehen in Schritt 1 und 2; bis dahin existieren sie noch nicht.

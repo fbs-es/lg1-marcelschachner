@@ -40,9 +40,26 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+// OpenApiSpezifikationIT vergleicht gegen diese Datei; Änderungen daran sollen Tests neu auslösen.
+tasks.test {
+    inputs.file("../frontend/openapi.json").withPropertyName("openApiSpezifikation").optional()
+}
+
 spotless {
     java {
         googleJavaFormat().aosp()
         removeUnusedImports()
     }
+}
+
+// ADR 0002: schreibt frontend/openapi.json neu, Quelle für npm run generate:api.
+tasks.register<Test>("aktualisiereOpenApi") {
+    description = "Exportiert die OpenAPI-Spezifikation nach frontend/openapi.json."
+    group = "documentation"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform()
+    filter { includeTestsMatching("*.OpenApiSpezifikationIT") }
+    systemProperty("openapi.aktualisieren", "true")
+    outputs.upToDateWhen { false }
 }

@@ -1,0 +1,45 @@
+.titelzeile {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--linie);
+  text-align: left;
+}
+
+th {
+  color: var(--gedaempft);
+  font-weight: 600;
+}
+
+.zahl {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.marke {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.verfuegbar {
+  color: var(--gut);
+}
+
+.ausverkauft {
+  color: var(--schlecht);
+}
+
+.meldung {
+  margin-top: 0;
+  white-space: pre-line;
+}

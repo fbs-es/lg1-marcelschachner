@@ -1,11 +1,11 @@
 # Architektur
 
-Stand: Schritt 1 (Backend-Fundament, E00). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 2 (Produktkatalog E02, Frontend-Fundament). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
 ```
-Browser (Angular, ab Schritt 2)
+Browser (Angular 21, :4200, Proxy /api → :8080)
    │  HTTP/JSON, /api/v1
    ▼
 Spring Boot 3.5 (Java 21, Gradle)  ──SMTP──▶  Mailpit (lokal) / Mailserver
@@ -16,7 +16,9 @@ PostgreSQL 16 (Schema per Flyway)
 
 - Build: Gradle 9.9.1 über `./gradlew`, Kotlin DSL ([ADR 0001](adr/0001-gradle-als-build-werkzeug.md)).
 - `./gradlew build` = kompilieren, alle Tests (Unit + Testcontainers), Spotless-Formatprüfung.
-- CI: `.github/workflows/ci.yml` führt `./gradlew build` auf `ubuntu-latest` aus (Docker für Testcontainers vorhanden).
+- CI: `.github/workflows/ci.yml` mit zwei Jobs auf `ubuntu-latest`:
+  - `backend`: `./gradlew build` (Docker für Testcontainers vorhanden)
+  - `frontend`: `npm ci`, `generate:api` plus `git diff --exit-code`, `npm test`, `npm run build`
 
 ## Pakete
 
@@ -29,7 +31,32 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung`, `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
 | `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
 | `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
-| `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`) |
+| `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`), `GeldDto` (`{cent, waehrung}`, nur `EUR`) |
+| `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `setzeLagerbestand`; prüft D-15 und I-7 |
+| `katalog.persistence` | `ProduktRepository` (Spring Data JPA) |
+| `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID) |
+| `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
+
+## REST-API
+
+OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert nach `frontend/openapi.json` ([ADR 0002](adr/0002-openapi-spezifikation-als-datei.md)).
+
+| Methode | Pfad | Ergebnis |
+|---|---|---|
+| POST | `/api/v1/produkte` | 201 + `Location`, 400 (D-15) |
+| GET | `/api/v1/produkte` | alle Produkte nach Titel |
+| GET | `/api/v1/produkte/{id}` | Produkt mit `istVerfuegbar`, 404 |
+| PUT | `/api/v1/produkte/{id}/lagerbestand` | Bestand absolut setzen, 400 bei < 0, 404, 409 Versionskonflikt |
+| GET | `/api/v1/produkte/{id}/verfuegbarkeit?menge=n` | `{produktId, menge, istVerfuegbar}`, 400 bei menge < 1, 404 |
+
+## Datenfluss (Beispiel Produkt anlegen)
+
+```
+ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produkte
+  → ProduktController (@Valid ProduktAnlegenDto) → ProduktService.legeAn (@Transactional)
+  → new Produkt(...) prüft Invarianten → ProduktRepository.save → INSERT produkt
+  ← 201 ProduktDto ← Router zurück zur Liste ← GET /api/v1/produkte
+```
 
 ## Querschnitt
 
@@ -53,6 +80,10 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `ObjectOptimisticLockingFailureException` | 409 | Versionskonflikt |
 | `FachlicheAblehnungException` | 422 | Fachlich abgelehnt |
 | alles andere | 500 | Interner Fehler (ohne interne Details, geloggt) |
+
+### Sprache
+
+- `spring.web.locale=de` mit festem `LocaleResolver`: Bean-Validation-Meldungen sind immer deutsch.
 
 ### Zeit
 
@@ -89,14 +120,14 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | Objekt | Zweck |
 |---|---|
 | Sequenz `bestellnummer_seq` | Zähler der Bestellnummer |
-
-Noch keine Tabellen (Fachentities ab Schritt 2).
+| Tabelle `produkt` | `id` UUID, `version`, `titel` (≤ 200), `listenpreis_cent` (≥ 0), `lagerbestand` (≥ 0); Index auf `titel` |
 
 ### Migrationen
 
 | Version | Datei | Inhalt |
 |---|---|---|
 | V1 | `V1__bestellnummer_sequenz.sql` | Sequenz `bestellnummer_seq` |
+| V2 | `V2__produkt.sql` | Tabelle `produkt` mit CHECK-Constraints |
 
 ## Lokale Infrastruktur
 
@@ -107,6 +138,21 @@ Noch keine Tabellen (Fachentities ab Schritt 2).
 | `postgres` | `postgres:16-alpine` | 5432 |
 | `mailpit` | `axllent/mailpit:v1.33.1` | 1025 (SMTP), 8025 (Web) |
 
+## Frontend
+
+Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit Vitest/jsdom.
+
+| Pfad | Inhalt |
+|---|---|
+| `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation), Routen, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
+| `src/app/api/` | generierter Client (`npm run generate:api`, nie von Hand ändern) |
+| `src/app/gemeinsam/` | `GeldPipe` (Cent → `49,99 €`), `euroInCent` + Validator `euroBetrag` (ohne Gleitkomma), `problemMeldung` (ProblemDetail → Text) |
+| `src/app/katalog/produkt-liste` | `/produkte`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Verfügbarkeit |
+| `src/app/katalog/produkt-anlegen` | `/produkte/neu`: Formular, Feld- und Serverfehler, danach zurück zur Liste |
+
+- `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
+- `openapitools.json` pinnt den Generator auf 7.27.0 (`typescript-angular`).
+
 ## Tests
 
 | Art | Werkzeug | Beispiele |
@@ -114,4 +160,8 @@ Noch keine Tabellen (Fachentities ab Schritt 2).
 | Domain-Unit | JUnit 5, AssertJ | `GeldTest`, `AnschriftTest`, `BestellnummernGeneratorTest`, `BenachrichtigungTest` |
 | Adapter-Unit | Mockito an der Grenze (`JavaMailSender`) | `MailBenachrichtigungsversandTest` |
 | Web | `@WebMvcTest`, MockMvc | `ZentraleFehlerbehandlungTest` (über Test-Controller `FehlerAusloesenderController`) |
+| Domain-Unit Katalog | JUnit 5, AssertJ | `ProduktTest` (US-02.1 AK1–5, D-15) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
+| API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
+| Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

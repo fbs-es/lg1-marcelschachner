@@ -1,0 +1,56 @@
+:root {
+  --text: #1d1f21;
+  --gedaempft: #5c6166;
+  --linie: #d9dcdf;
+  --flaeche: #f6f7f8;
+  --akzent: #1f5fa8;
+  --gut: #1e7a3c;
+  --schlecht: #a3271f;
+
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+button,
+.knopf {
+  display: inline-block;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--akzent);
+  border-radius: 4px;
+  background: var(--akzent);
+  color: #fff;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.knopf.zweitrangig {
+  background: transparent;
+  color: var(--akzent);
+}
+
+.hinweis {
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--linie);
+  background: var(--flaeche);
+}
+
+.hinweis.fehler {
+  border-left-color: var(--schlecht);
+  color: var(--schlecht);
+}

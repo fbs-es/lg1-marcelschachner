@@ -1,0 +1,370 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "REST-API des Bestellsystems. Basis /api/v1. Fehler als ProblemDetail (RFC 9457), Geldbeträge in Cent (EUR).",
+    "title" : "Bestellsystem API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/",
+    "description" : "Aktueller Host"
+  } ],
+  "tags" : [ {
+    "description" : "Produktkatalog und Lagerbestand (E02)",
+    "name" : "Produkte"
+  } ],
+  "paths" : {
+    "/api/v1/produkte" : {
+      "get" : {
+        "operationId" : "listeProdukte",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Produkt"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Alle Produkte, nach Titel sortiert",
+        "tags" : [ "Produkte" ]
+      },
+      "post" : {
+        "operationId" : "legeProduktAn",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProduktAnlegen"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Produkt"
+                }
+              }
+            },
+            "description" : "Angelegt, Location zeigt auf das Produkt"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Ungültige Eingabe (D-15)"
+          }
+        },
+        "summary" : "Produkt anlegen",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/produkte/{produktId}" : {
+      "get" : {
+        "operationId" : "findeProdukt",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Produkt"
+                }
+              }
+            },
+            "description" : "Gefunden"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Produkt existiert nicht"
+          }
+        },
+        "summary" : "Ein Produkt mit Verfügbarkeit",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/produkte/{produktId}/lagerbestand" : {
+      "put" : {
+        "operationId" : "setzeLagerbestand",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/Lagerbestand"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Produkt"
+                }
+              }
+            },
+            "description" : "Bestand gesetzt"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bestand negativ (US-02.1 AK5)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Produkt existiert nicht"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Gleichzeitige Änderung (Versionskonflikt)"
+          }
+        },
+        "summary" : "Lagerbestand setzen (Wareneingang, Korrektur)",
+        "tags" : [ "Produkte" ]
+      }
+    },
+    "/api/v1/produkte/{produktId}/verfuegbarkeit" : {
+      "get" : {
+        "operationId" : "pruefeVerfuegbarkeit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "produktId",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "description" : "Gewünschte Menge, mindestens 1",
+          "in" : "query",
+          "name" : "menge",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Verfuegbarkeit"
+                }
+              }
+            },
+            "description" : "Ergebnis der Prüfung"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Menge kleiner als 1 (US-02.1 AK4)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Produkt existiert nicht"
+          }
+        },
+        "summary" : "Prüfen, ob eine Menge lieferbar ist (ändert den Bestand nicht)",
+        "tags" : [ "Produkte" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "Geld" : {
+        "type" : "object",
+        "description" : "Geldbetrag in ganzen Cent (D-11)",
+        "properties" : {
+          "cent" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Betrag in Cent",
+            "example" : 4999,
+            "minimum" : 0
+          },
+          "waehrung" : {
+            "type" : "string",
+            "description" : "Währung, immer EUR",
+            "enum" : [ "EUR" ],
+            "example" : "EUR",
+            "pattern" : "EUR"
+          }
+        },
+        "required" : [ "cent", "waehrung" ]
+      },
+      "Lagerbestand" : {
+        "type" : "object",
+        "description" : "Neuer absoluter Lagerbestand (nie negativ, I-7)",
+        "properties" : {
+          "lagerbestand" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 5,
+            "minimum" : 0
+          }
+        },
+        "required" : [ "lagerbestand" ]
+      },
+      "ProblemDetail" : {
+        "type" : "object",
+        "properties" : {
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "instance" : {
+            "type" : [ "string", "null" ],
+            "format" : "uri"
+          },
+          "properties" : {
+            "type" : [ "object", "null" ],
+            "additionalProperties" : { }
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : [ "string", "null" ]
+          },
+          "type" : {
+            "type" : "string",
+            "format" : "uri"
+          }
+        }
+      },
+      "Produkt" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "istVerfuegbar" : {
+            "type" : "boolean",
+            "description" : "Lagerbestand > 0 (D-09)"
+          },
+          "lagerbestand" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "listenpreis" : {
+            "$ref" : "#/components/schemas/Geld"
+          },
+          "titel" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "istVerfuegbar", "lagerbestand", "listenpreis", "titel" ]
+      },
+      "ProduktAnlegen" : {
+        "type" : "object",
+        "description" : "Neues Produkt (D-15)",
+        "properties" : {
+          "lagerbestand" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Anfangsbestand",
+            "example" : 3,
+            "minimum" : 0
+          },
+          "listenpreis" : {
+            "$ref" : "#/components/schemas/Geld"
+          },
+          "titel" : {
+            "type" : "string",
+            "example" : "Stehlampe",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "lagerbestand", "listenpreis", "titel" ]
+      },
+      "Verfuegbarkeit" : {
+        "type" : "object",
+        "description" : "Ergebnis der Prüfung Lagerbestand ≥ menge (D-09)",
+        "properties" : {
+          "istVerfuegbar" : {
+            "type" : "boolean"
+          },
+          "menge" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "produktId" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        },
+        "required" : [ "istVerfuegbar", "menge", "produktId" ]
+      }
+    }
+  }
+}

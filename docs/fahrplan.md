@@ -153,7 +153,7 @@ Kriterien vorher mit mir klären), E-Mail über den Benachrichtigungs-Port.
 
 ---
 
-## [ ] 7 Merkliste (E03)
+## [x] 7 Merkliste (E03) (2026-11-12, d928f94)
 
 **Werkzeug:** goal oder feature-dev
 **Eingaben:** `epics/E03-*.md`, `stories/US-03.1-*.md`, D-07

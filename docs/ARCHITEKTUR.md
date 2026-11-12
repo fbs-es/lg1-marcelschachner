@@ -1,6 +1,8 @@
 # Architektur
 
-Stand: Schritt 8 (Versand E07: US-07.1 bis US-07.3, D-22). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 9 (Abschlussdokumentation). Wird mit jedem Schritt im selben Commit nachgezogen.
+
+Überblick und Begründungen: [arc42.md](arc42.md); technische Entscheidungen: [adr/](adr/README.md); Bedienung: [benutzerhandbuch.md](benutzerhandbuch.md). Dieses Dokument ist die Detailreferenz.
 
 ## Überblick
 
@@ -62,7 +64,7 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 
 ## REST-API
 
-OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert nach `frontend/openapi.json` ([ADR 0002](adr/0002-openapi-spezifikation-als-datei.md)).
+OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert nach `frontend/openapi.json` (Quelle des Clients) und `docs/api/openapi.yaml` (Dokumentation), beide per `./gradlew aktualisiereOpenApi` ([ADR 0002](adr/0002-openapi-spezifikation-als-datei.md)).
 
 | Methode | Pfad | Ergebnis |
 |---|---|---|
@@ -368,5 +370,5 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
-| Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
+| Spec-Drift | `OpenApiSpezifikationIT` (prüft `frontend/openapi.json` und `docs/api/openapi.yaml`); `./gradlew aktualisiereOpenApi` schreibt beide neu | ADR 0002 |
 | Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts` (US-05.1 AK1/2/5, US-07.3 AK1/2), `bestellhistorie.spec.ts` (US-04.2, D-19), `merkliste.spec.ts` (US-03.1, US-03.2), `versandpakete.spec.ts` (US-07.1 bis US-07.3), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

@@ -9,8 +9,8 @@ Das Frontend ruft das Backend nur über einen aus der OpenAPI erzeugten Client a
 ## Entscheidung
 
 - Die Spezifikation liegt versioniert unter **`frontend/openapi.json`**.
-- **`./gradlew aktualisiereOpenApi`** schreibt sie neu. Dafür startet der Task den Spring-Kontext mit Testcontainers und liest `/v3/api-docs`.
-- **`OpenApiSpezifikationIT`** läuft in `./gradlew build` und vergleicht die Datei mit der aktuellen API. Weicht sie ab, ist der Build rot.
+- **`./gradlew aktualisiereOpenApi`** schreibt sie neu, zusammen mit der Dokumentationsfassung **`docs/api/openapi.yaml`** (gleicher Inhalt als YAML). Dafür startet der Task den Spring-Kontext mit Testcontainers und liest `/v3/api-docs`.
+- **`OpenApiSpezifikationIT`** läuft in `./gradlew build` und vergleicht beide Dateien mit der aktuellen API. Weicht eine ab, ist der Build rot.
 - Damit die Datei deterministisch ist:
   - Schlüssel werden sortiert (`springdoc.writer-with-order-by-keys`).
   - Die Server-URL ist fest `/`.
@@ -22,6 +22,6 @@ Das Frontend ruft das Backend nur über einen aus der OpenAPI erzeugten Client a
 
 ## Konsequenzen
 
-- Ablauf bei API-Änderungen: `./gradlew aktualisiereOpenApi`, dann `npm run generate:api`. Beides wird committet.
+- Ablauf bei API-Änderungen: `./gradlew aktualisiereOpenApi`, dann `npm run generate:api`. Alles wird committet.
 - `generate:api` braucht Java (der Generator ist ein JAR). Das ist lokal und in CI ohnehin vorhanden.
-- Die exportierte Spec ist zugleich die API-Dokumentation. Schritt 9 kann sie zusätzlich als `docs/api/openapi.yaml` ablegen.
+- Die exportierte Spec ist zugleich die API-Dokumentation; `docs/api/openapi.yaml` ist ihre lesbare Fassung (seit Schritt 9).

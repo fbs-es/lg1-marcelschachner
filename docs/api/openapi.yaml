@@ -1,0 +1,1690 @@
+openapi: 3.1.0
+info:
+  description: "REST-API des Bestellsystems. Basis /api/v1. Fehler als ProblemDetail\
+    \ (RFC 9457), Geldbeträge in Cent (EUR)."
+  title: Bestellsystem API
+  version: v1
+servers:
+- url: /
+  description: Aktueller Host
+tags:
+- description: "Zahlungsstatus und Erstattungen (E05, D-19)"
+  name: Zahlungen
+- description: Kundenkonto (E01)
+  name: Kunden
+- description: "Liefer- und Rechnungsadressen eines Kunden (E01, D-06)"
+  name: Adressbuch
+- description: Produktkatalog und Lagerbestand (E02)
+  name: Produkte
+- description: "Checkout und Bestellabruf (E04, E08)"
+  name: Bestellungen
+- description: Mahnprüfung und Mahnlauf (E06)
+  name: Mahnwesen
+- description: "Gemerkte Produkte eines Kunden (E03, D-07, D-21)"
+  name: Merkliste
+- description: "Versandpakete und Lieferstatus (E07, D-12, D-22)"
+  name: Versand
+paths:
+  /api/v1/kunden:
+    get:
+      operationId: listeKunden
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KundeUebersicht"
+          description: OK
+      summary: "Alle Kunden ohne Adressbuch, nach Name"
+      tags:
+      - Kunden
+    post:
+      operationId: registriereKunde
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Registrierung"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kunde"
+          description: "Registriert, Location zeigt auf den Kunden"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Ungültige Eingabe, z. B. fehlende Lieferadresse (US-01.1 AK2,\
+            \ AK4)"
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: E-Mail bereits vergeben (US-01.1 AK3)
+      summary: Kunde mit erster Lieferadresse registrieren
+      tags:
+      - Kunden
+  /api/v1/kunden/{kundenId}:
+    get:
+      operationId: findeKunde
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kunde"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+      summary: Ein Kunde mit Adressbuch
+      tags:
+      - Kunden
+  /api/v1/kunden/{kundenId}/adressen:
+    post:
+      operationId: fuegeAdresseHinzu
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdresseEingabe"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Adresse"
+          description: "Hinzugefügt, Location zeigt auf die Adresse"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Ungültige Eingabe oder kein Kennzeichen (I-2)
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Adressbuch gleichzeitig geändert (Versionskonflikt)
+      summary: Weitere Adresse hinzufügen (US-01.2)
+      tags:
+      - Adressbuch
+  /api/v1/kunden/{kundenId}/adressen/{adressId}:
+    delete:
+      operationId: entferneAdresse
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: adressId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Gelöscht
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde oder Adresse existiert nicht oder gehört einem anderen
+            Kunden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Adressbuch gleichzeitig geändert (Versionskonflikt)
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Letzte Lieferadresse ist nicht löschbar (I-1)
+      summary: Adresse löschen (US-01.3)
+      tags:
+      - Adressbuch
+    get:
+      operationId: findeAdresse
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: adressId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Adresse"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde oder Adresse existiert nicht oder gehört einem anderen
+            Kunden
+      summary: Eine Adresse aus dem Adressbuch
+      tags:
+      - Adressbuch
+    put:
+      operationId: aendereAdresse
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: adressId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdresseEingabe"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Adresse"
+          description: Geändert
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Ungültige Eingabe oder kein Kennzeichen (I-2)
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde oder Adresse existiert nicht oder gehört einem anderen
+            Kunden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Adressbuch gleichzeitig geändert (Versionskonflikt)
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Letzter Lieferadresse würde das Kennzeichen entzogen (I-1)
+      summary: Anschrift und Kennzeichen vollständig ersetzen (US-01.3)
+      tags:
+      - Adressbuch
+  /api/v1/kunden/{kundenId}/bestellungen:
+    get:
+      operationId: listeBestellungen
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BestellungUebersicht"
+          description: "Liste, leer ohne Bestellungen"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+      summary: "Bestellhistorie des Kunden, neueste zuerst (US-04.2)"
+      tags:
+      - Bestellungen
+    post:
+      operationId: gibBestellungAuf
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BestellungAufgeben"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bestellung"
+          description: "Angelegt, Location zeigt auf die Bestellung"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Ungültige Eingabe, z. B. keine Positionen oder Menge < 1"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Kunde oder Produkt existiert nicht, Adresse gehört nicht zum\
+            \ Kunden (D-17)"
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestand reicht nicht; Hinweis nennt die Produkte (US-04.1 AK3)
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Adresse ist keine Lieferadresse, Gutschein abgelaufen oder\
+            \ unbekannt (D-17)"
+      summary: "Bestellung aufgeben (US-04.1), optional mit Gutschein (US-08.1)"
+      tags:
+      - Bestellungen
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}:
+    get:
+      operationId: findeBestellung
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bestellung"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung existiert nicht oder gehört einem anderen Kunden
+      summary: Eine Bestellung des Kunden
+      tags:
+      - Bestellungen
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen:
+    post:
+      description: Entsteht mit Status AUSSTEHEND; höchstens bezahlte Summe abzüglich
+        ausstehender Erstattungen.
+      operationId: bucheErstattung
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ErstattungBuchen"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zahlung"
+          description: "Angelegt, Location zeigt auf die Buchung"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Ungültige Eingabe, z. B. Betrag 0 oder Zahlungsart fehlt"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung existiert nicht oder gehört einem anderen Kunden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Versionskonflikt durch gleichzeitige Buchung
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Betrag übersteigt den erstattbaren Betrag
+      summary: Erstattung buchen (D-19)
+      tags:
+      - Zahlungen
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete:
+    post:
+      description: Entsteht mit Lieferstatus ANGELEGT. Sendungsnummer eindeutig je
+        Dienstleister über alle Bestellungen (I-11).
+      operationId: legePaketAn
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaketAnlegen"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Versandpaket"
+          description: "Angelegt, Location zeigt auf das Paket"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: "Dienstleister fehlt oder unbekannt, Sendungsnummer ungültig"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung existiert nicht oder gehört einem anderen Kunden
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Sendungsnummer beim Dienstleister vergeben oder Versionskonflikt
+      summary: Versandpaket anlegen (US-07.1)
+      tags:
+      - Versand
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}:
+    get:
+      operationId: findePaket
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: paketId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Versandpaket"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung oder Paket existiert nicht oder gehört nicht dazu
+      summary: Ein Versandpaket der Bestellung (US-07.3)
+      tags:
+      - Versand
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/pakete/{paketId}/status:
+    put:
+      description: "Nur vorwärts, Stufen dürfen übersprungen werden; RETOURE und VERLOREN\
+        \ erst ab UEBERGEBEN; ZUGESTELLT, RETOURE, VERLOREN sind Endzustände (D-22)."
+      operationId: aendereLieferstatus
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: paketId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LieferstatusAenderung"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Versandpaket"
+          description: Geändert
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Status fehlt oder ist unbekannt
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung oder Paket existiert nicht oder gehört nicht dazu
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Versionskonflikt durch gleichzeitige Änderung
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Übergang nicht erlaubt
+      summary: Lieferstatus fortschreiben (US-07.2)
+      tags:
+      - Versand
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}:
+    get:
+      operationId: findeZahlung
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: zahlungId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zahlung"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung oder Buchung existiert nicht oder gehört nicht dazu
+      summary: Eine Buchung der Bestellung
+      tags:
+      - Zahlungen
+  /api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status:
+    put:
+      description: "Nur aus AUSSTEHEND nach ERFOLGREICH, FEHLGESCHLAGEN oder STORNIERT.\
+        \ ERFOLGREICH setzt den Zahlungszeitpunkt."
+      operationId: aendereZahlungsstatus
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: bestellnummer
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: zahlungId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusAenderung"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zahlung"
+          description: Geändert
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Status fehlt oder ist unbekannt
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestellung oder Buchung existiert nicht oder gehört nicht dazu
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Versionskonflikt durch gleichzeitige Buchung
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Buchung ist nicht mehr AUSSTEHEND oder Ziel ist AUSSTEHEND
+      summary: Status einer Zahlung oder Erstattung ändern (D-19)
+      tags:
+      - Zahlungen
+  /api/v1/kunden/{kundenId}/mahnpruefung:
+    post:
+      description: "Mahnt jede überfällige Bestellung, deren letzte Mahnung mindestens\
+        \ ein Mahnintervall zurückliegt, und versendet eine E-Mail mit allen gemahnten\
+        \ Bestellungen."
+      operationId: pruefeMahnungen
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mahnpruefung"
+          description: Geprüft; leere Liste ohne Rückstand
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Versionskonflikt mit einer gleichzeitigen Änderung der Bestellung
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: E-Mail nicht versendet; keine Mahnung protokolliert (US-06.1
+            AK7)
+      summary: "Mahnprüfung für einen Kunden mit heutigem Stichtag (US-06.1, D-20)"
+      tags:
+      - Mahnwesen
+  /api/v1/kunden/{kundenId}/merkliste:
+    get:
+      description: "Liefert Merkdatum, aktuellen Listenpreis und aktuelle Verfügbarkeit;\
+        \ leere Liste, wenn nichts gemerkt ist."
+      operationId: listeMerkliste
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Merklisteneintrag"
+          description: "Merkliste, ggf. leer"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+      summary: "Beobachtete Artikel, neueste zuerst (US-03.1)"
+      tags:
+      - Merkliste
+  /api/v1/kunden/{kundenId}/merkliste/{produktId}:
+    delete:
+      description: "Auch wenn das Produkt nicht gemerkt war: 204, nichts ändert sich\
+        \ (D-21)."
+      operationId: entferneVonMerkliste
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Entfernt oder war nicht gemerkt
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht
+      summary: Produkt von der Merkliste entfernen (US-03.2)
+      tags:
+      - Merkliste
+    get:
+      operationId: findeMerklisteneintrag
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Merklisteneintrag"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde existiert nicht oder Produkt steht nicht auf der Merkliste
+      summary: Ein Eintrag der Merkliste
+      tags:
+      - Merkliste
+    put:
+      description: "Merkt das Produkt mit heutigem Datum. Ist es schon gemerkt, bleibt\
+        \ der Eintrag mit seinem ursprünglichen Datum unverändert (I-4, D-21)."
+      operationId: merkeProdukt
+      parameters:
+      - in: path
+        name: kundenId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Merklisteneintrag"
+          description: "War schon gemerkt, unverändert"
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Merklisteneintrag"
+          description: "Neu gemerkt, Location zeigt auf den Eintrag"
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Kunde oder Produkt existiert nicht
+      summary: Produkt merken (US-03.1)
+      tags:
+      - Merkliste
+  /api/v1/mahnlaeufe:
+    post:
+      description: Läuft sonst täglich zeitgesteuert. Fehler bei einzelnen Kunden
+        brechen den Lauf nicht ab und werden gezählt.
+      operationId: starteMahnlauf
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mahnlauf"
+          description: Lauf beendet
+      summary: "Mahnlauf über alle Kunden mit heutigem Stichtag (US-06.2, D-20)"
+      tags:
+      - Mahnwesen
+  /api/v1/produkte:
+    get:
+      operationId: listeProdukte
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Produkt"
+          description: OK
+      summary: "Alle Produkte, nach Titel sortiert"
+      tags:
+      - Produkte
+    post:
+      operationId: legeProduktAn
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProduktAnlegen"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Produkt"
+          description: "Angelegt, Location zeigt auf das Produkt"
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Ungültige Eingabe (D-15)
+      summary: Produkt anlegen
+      tags:
+      - Produkte
+  /api/v1/produkte/{produktId}:
+    get:
+      operationId: findeProdukt
+      parameters:
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Produkt"
+          description: Gefunden
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Produkt existiert nicht
+      summary: Ein Produkt mit Verfügbarkeit
+      tags:
+      - Produkte
+  /api/v1/produkte/{produktId}/lagerbestand:
+    put:
+      operationId: setzeLagerbestand
+      parameters:
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Lagerbestand"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Produkt"
+          description: Bestand gesetzt
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Bestand negativ (US-02.1 AK5)
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Produkt existiert nicht
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Gleichzeitige Änderung (Versionskonflikt)
+      summary: "Lagerbestand setzen (Wareneingang, Korrektur)"
+      tags:
+      - Produkte
+  /api/v1/produkte/{produktId}/verfuegbarkeit:
+    get:
+      operationId: pruefeVerfuegbarkeit
+      parameters:
+      - in: path
+        name: produktId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - description: "Gewünschte Menge, mindestens 1"
+        in: query
+        name: menge
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Verfuegbarkeit"
+          description: Ergebnis der Prüfung
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Menge kleiner als 1 (US-02.1 AK4)
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+          description: Produkt existiert nicht
+      summary: "Prüfen, ob eine Menge lieferbar ist (ändert den Bestand nicht)"
+      tags:
+      - Produkte
+components:
+  schemas:
+    Adresse:
+      type: object
+      properties:
+        anschrift:
+          $ref: "#/components/schemas/Anschrift"
+        id:
+          type: string
+          format: uuid
+        istLieferadresse:
+          type: boolean
+        istRechnungsadresse:
+          type: boolean
+      required:
+      - anschrift
+      - id
+      - istLieferadresse
+      - istRechnungsadresse
+    AdresseEingabe:
+      type: object
+      description: Adresse mit Kennzeichen; mindestens eines muss gesetzt sein (I-2)
+      properties:
+        anschrift:
+          $ref: "#/components/schemas/Anschrift"
+        istLieferadresse:
+          type: boolean
+        istRechnungsadresse:
+          type: boolean
+      required:
+      - anschrift
+      - istLieferadresse
+      - istRechnungsadresse
+    Anschrift:
+      type: object
+      properties:
+        land:
+          type: string
+          description: ISO-3166-Alpha-2-Code
+          example: DE
+          minLength: 1
+        postleitzahl:
+          type: string
+          example: 10115
+          maxLength: 20
+          minLength: 0
+        stadt:
+          type: string
+          example: Berlin
+          maxLength: 100
+          minLength: 0
+        strasse:
+          type: string
+          example: Hauptstraße 1
+          maxLength: 200
+          minLength: 0
+      required:
+      - land
+      - postleitzahl
+      - stadt
+      - strasse
+    Bestellposition:
+      type: object
+      properties:
+        einzelpreis:
+          $ref: "#/components/schemas/Geld"
+          description: "Listenpreis zum Checkout, eingefroren (D-10)"
+        menge:
+          type: integer
+          format: int32
+        produktId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        zeilennummer:
+          type: integer
+          format: int32
+        zwischenbetrag:
+          $ref: "#/components/schemas/Geld"
+          description: menge × einzelpreis
+      required:
+      - einzelpreis
+      - menge
+      - produktId
+      - titel
+      - zeilennummer
+      - zwischenbetrag
+    Bestellung:
+      type: object
+      properties:
+        bestelldatum:
+          type: string
+          format: date
+        bestellnummer:
+          type: string
+          example: B-2026-000123
+        bezahlteSumme:
+          $ref: "#/components/schemas/Geld"
+          description: Σ erfolgreiche Zahlungen − Σ erfolgreiche Erstattungen (D-05)
+        faelligAm:
+          type: string
+          format: date
+          description: bestelldatum + Zahlungsziel (D-03)
+        gesamtwert:
+          $ref: "#/components/schemas/Geld"
+          description: "max(0, warenwert − rabattBetrag), berechnet (D-01)"
+        gutscheincode:
+          type: string
+          description: "Eingelöster Gutschein, leer ohne Gutschein"
+        istVollstaendigBezahlt:
+          type: boolean
+          description: bezahlteSumme ≥ gesamtwert (D-05)
+        kundenId:
+          type: string
+          format: uuid
+        lieferanschrift:
+          $ref: "#/components/schemas/Anschrift"
+          description: Snapshot zum Checkout (D-08)
+        offenerBetrag:
+          $ref: "#/components/schemas/Geld"
+          description: "max(0, gesamtwert − bezahlteSumme) (D-05)"
+        pakete:
+          type: array
+          description: "Versandpakete in Anlagereihenfolge; leer, solange nichts versandt\
+            \ ist"
+          items:
+            $ref: "#/components/schemas/Versandpaket"
+        positionen:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bestellposition"
+        rabattBetrag:
+          $ref: "#/components/schemas/Geld"
+          description: Beim Checkout eingefroren (D-04)
+        warenwert:
+          $ref: "#/components/schemas/Geld"
+          description: Summe der Zwischenbeträge
+        zahlungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/Zahlung"
+      required:
+      - bestelldatum
+      - bestellnummer
+      - bezahlteSumme
+      - faelligAm
+      - gesamtwert
+      - istVollstaendigBezahlt
+      - kundenId
+      - lieferanschrift
+      - offenerBetrag
+      - pakete
+      - positionen
+      - rabattBetrag
+      - warenwert
+      - zahlungen
+    BestellungAufgeben:
+      type: object
+      description: "Checkout (US-04.1, US-08.1)"
+      properties:
+        gutscheincode:
+          type: string
+          description: "Höchstens ein Code, ohne Beachtung der Groß-/Kleinschreibung\
+            \ (D-04)"
+          example: HERBST10
+          maxLength: 50
+          minLength: 0
+        lieferadresseId:
+          type: string
+          format: uuid
+          description: Adresse aus dem eigenen Adressbuch mit Lieferkennzeichen
+        positionen:
+          type: array
+          items:
+            $ref: "#/components/schemas/Positionswunsch"
+          minItems: 1
+        zahlungsart:
+          type: string
+          enum:
+          - KREDITKARTE
+          - PAYPAL
+          - LASTSCHRIFT
+          - RECHNUNG
+          - VORKASSE
+      required:
+      - lieferadresseId
+      - positionen
+      - zahlungsart
+    BestellungUebersicht:
+      type: object
+      description: Eintrag der Bestellhistorie (US-04.2)
+      properties:
+        anzahlPositionen:
+          type: integer
+          format: int32
+          description: "Anzahl der Positionen, nicht der Stückzahl"
+        bestelldatum:
+          type: string
+          format: date
+        bestellnummer:
+          type: string
+          example: B-2026-000123
+        gesamtwert:
+          $ref: "#/components/schemas/Geld"
+          description: "max(0, warenwert − rabattBetrag), berechnet (D-01)"
+        istVollstaendigBezahlt:
+          type: boolean
+          description: bezahlteSumme ≥ gesamtwert (D-05)
+        offenerBetrag:
+          $ref: "#/components/schemas/Geld"
+          description: "max(0, gesamtwert − bezahlteSumme) (D-05)"
+      required:
+      - anzahlPositionen
+      - bestelldatum
+      - bestellnummer
+      - gesamtwert
+      - istVollstaendigBezahlt
+      - offenerBetrag
+    ErstattungBuchen:
+      type: object
+      description: "Erstattung, entsteht mit Status AUSSTEHEND (D-19)"
+      properties:
+        betrag:
+          $ref: "#/components/schemas/Geld"
+          description: "Größer 0, höchstens der erstattbare Betrag"
+        zahlungsart:
+          type: string
+          enum:
+          - KREDITKARTE
+          - PAYPAL
+          - LASTSCHRIFT
+          - RECHNUNG
+          - VORKASSE
+      required:
+      - betrag
+      - zahlungsart
+    Geld:
+      type: object
+      description: Geldbetrag in ganzen Cent (D-11)
+      properties:
+        cent:
+          type: integer
+          format: int64
+          description: Betrag in Cent
+          example: 4999
+          minimum: 0
+        waehrung:
+          type: string
+          description: "Währung, immer EUR"
+          enum:
+          - EUR
+          example: EUR
+          pattern: EUR
+      required:
+      - cent
+      - waehrung
+    Kunde:
+      type: object
+      description: Kunde mit Adressbuch in Anlagereihenfolge
+      properties:
+        adressen:
+          type: array
+          items:
+            $ref: "#/components/schemas/Adresse"
+        email:
+          type: string
+        id:
+          type: string
+          format: uuid
+        nachname:
+          type: string
+        vorname:
+          type: string
+      required:
+      - adressen
+      - email
+      - id
+      - nachname
+      - vorname
+    KundeUebersicht:
+      type: object
+      description: "Kunde ohne Adressbuch, für Listen"
+      properties:
+        email:
+          type: string
+        id:
+          type: string
+          format: uuid
+        nachname:
+          type: string
+        vorname:
+          type: string
+      required:
+      - email
+      - id
+      - nachname
+      - vorname
+    Lagerbestand:
+      type: object
+      description: "Neuer absoluter Lagerbestand (nie negativ, I-7)"
+      properties:
+        lagerbestand:
+          type: integer
+          format: int32
+          example: 5
+          minimum: 0
+      required:
+      - lagerbestand
+    LieferstatusAenderung:
+      type: object
+      description: Neuer Lieferstatus eines Pakets; nur erlaubte Folgestatus (D-22)
+      properties:
+        lieferstatus:
+          type: string
+          enum:
+          - ANGELEGT
+          - UEBERGEBEN
+          - IN_ZUSTELLUNG
+          - ZUGESTELLT
+          - RETOURE
+          - VERLOREN
+          example: UEBERGEBEN
+      required:
+      - lieferstatus
+    Mahnlauf:
+      type: object
+      description: Ergebnis eines Mahnlaufs über alle Kunden (US-06.2)
+      properties:
+        fehlgeschlageneKunden:
+          type: integer
+          format: int32
+          description: "Kunden, deren Prüfung oder Versand gescheitert ist"
+        gemahnteKunden:
+          type: integer
+          format: int32
+          description: "Kunden, die eine Benachrichtigung erhalten haben"
+        stichtag:
+          type: string
+          format: date
+      required:
+      - fehlgeschlageneKunden
+      - gemahnteKunden
+      - stichtag
+    Mahnposition:
+      type: object
+      description: Gemahnte Bestellung mit offenem Betrag am Stichtag (D-20)
+      properties:
+        bestellnummer:
+          type: string
+          example: B-2026-000123
+        faelligAm:
+          type: string
+          format: date
+        offenerBetrag:
+          $ref: "#/components/schemas/Geld"
+      required:
+      - bestellnummer
+      - faelligAm
+      - offenerBetrag
+    Mahnpruefung:
+      type: object
+      description: Ergebnis der Mahnprüfung eines Kunden (US-06.1)
+      properties:
+        istGemahnt:
+          type: boolean
+          description: Eine Benachrichtigung wurde versendet
+        mahnpositionen:
+          type: array
+          description: "In dieser Prüfung gemahnte Bestellungen, leer ohne Rückstand"
+          items:
+            $ref: "#/components/schemas/Mahnposition"
+        stichtag:
+          type: string
+          format: date
+      required:
+      - istGemahnt
+      - mahnpositionen
+      - stichtag
+    Merklisteneintrag:
+      type: object
+      description: Gemerktes Produkt mit aktuellem Preis und aktueller Verfügbarkeit
+        (D-07)
+      properties:
+        hinzugefuegtAm:
+          type: string
+          format: date
+          description: Merkdatum in der Zeitzone des Shops (D-21)
+        istVerfuegbar:
+          type: boolean
+          description: Lagerbestand > 0 (D-09)
+        listenpreis:
+          $ref: "#/components/schemas/Geld"
+          description: Aktueller Listenpreis
+        produktId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+      required:
+      - hinzugefuegtAm
+      - istVerfuegbar
+      - listenpreis
+      - produktId
+      - titel
+    PaketAnlegen:
+      type: object
+      description: Neues Versandpaket; entsteht mit Lieferstatus ANGELEGT (US-07.1)
+      properties:
+        dienstleister:
+          type: string
+          enum:
+          - DHL
+          - DPD
+          - GLS
+          - HERMES
+          - UPS
+          example: DHL
+        sendungsnummer:
+          type: string
+          description: 1–50 Buchstaben oder Ziffern; wird getrimmt und großgeschrieben
+            (D-22)
+          example: '00340434161094042557'
+          minLength: 1
+      required:
+      - dienstleister
+      - sendungsnummer
+    Positionswunsch:
+      type: object
+      description: Gleiches Produkt mehrfach wird zusammengefasst (D-10)
+      properties:
+        menge:
+          type: integer
+          format: int32
+          example: 2
+          minimum: 1
+        produktId:
+          type: string
+          format: uuid
+      required:
+      - menge
+      - produktId
+    ProblemDetail:
+      type: object
+      properties:
+        detail:
+          type:
+          - string
+          - "null"
+        instance:
+          type:
+          - string
+          - "null"
+          format: uri
+        properties:
+          type:
+          - object
+          - "null"
+          additionalProperties: {}
+        status:
+          type: integer
+          format: int32
+        title:
+          type:
+          - string
+          - "null"
+        type:
+          type: string
+          format: uri
+    Produkt:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        istVerfuegbar:
+          type: boolean
+          description: Lagerbestand > 0 (D-09)
+        lagerbestand:
+          type: integer
+          format: int32
+        listenpreis:
+          $ref: "#/components/schemas/Geld"
+        titel:
+          type: string
+      required:
+      - id
+      - istVerfuegbar
+      - lagerbestand
+      - listenpreis
+      - titel
+    ProduktAnlegen:
+      type: object
+      description: Neues Produkt (D-15)
+      properties:
+        lagerbestand:
+          type: integer
+          format: int32
+          description: Anfangsbestand
+          example: 3
+          minimum: 0
+        listenpreis:
+          $ref: "#/components/schemas/Geld"
+        titel:
+          type: string
+          example: Stehlampe
+          maxLength: 200
+          minLength: 0
+      required:
+      - lagerbestand
+      - listenpreis
+      - titel
+    Registrierung:
+      type: object
+      description: Neues Kundenkonto mit erster Lieferadresse (US-01.1)
+      properties:
+        email:
+          type: string
+          description: Eindeutig ohne Groß-/Kleinschreibung (D-13)
+          example: anna@example.de
+          minLength: 1
+        istAuchRechnungsadresse:
+          type: boolean
+          default: false
+          description: Lieferadresse ist zugleich Rechnungsadresse
+        lieferadresse:
+          $ref: "#/components/schemas/Anschrift"
+        nachname:
+          type: string
+          example: Muster
+          maxLength: 100
+          minLength: 0
+        vorname:
+          type: string
+          example: Anna
+          maxLength: 100
+          minLength: 0
+      required:
+      - email
+      - lieferadresse
+      - nachname
+      - vorname
+    StatusAenderung:
+      type: object
+      description: Neuer Status einer Buchung; nur aus AUSSTEHEND möglich (D-19)
+      properties:
+        transaktionsstatus:
+          type: string
+          enum:
+          - AUSSTEHEND
+          - ERFOLGREICH
+          - FEHLGESCHLAGEN
+          - STORNIERT
+          example: ERFOLGREICH
+      required:
+      - transaktionsstatus
+    Verfuegbarkeit:
+      type: object
+      description: Ergebnis der Prüfung Lagerbestand ≥ menge (D-09)
+      properties:
+        istVerfuegbar:
+          type: boolean
+        menge:
+          type: integer
+          format: int32
+        produktId:
+          type: string
+          format: uuid
+      required:
+      - istVerfuegbar
+      - menge
+      - produktId
+    Versandpaket:
+      type: object
+      properties:
+        angelegtAm:
+          type: string
+          format: date-time
+        dienstleister:
+          type: string
+          enum:
+          - DHL
+          - DPD
+          - GLS
+          - HERMES
+          - UPS
+        erlaubteFolgestatus:
+          type: array
+          description: "Status, in die das Paket wechseln darf; leer im Endzustand\
+            \ (D-22)"
+          items:
+            type: string
+            enum:
+            - ANGELEGT
+            - UEBERGEBEN
+            - IN_ZUSTELLUNG
+            - ZUGESTELLT
+            - RETOURE
+            - VERLOREN
+        id:
+          type: string
+          format: uuid
+        lieferstatus:
+          type: string
+          enum:
+          - ANGELEGT
+          - UEBERGEBEN
+          - IN_ZUSTELLUNG
+          - ZUGESTELLT
+          - RETOURE
+          - VERLOREN
+        sendungsnummer:
+          type: string
+          description: Getrimmt und großgeschrieben (D-22)
+          example: AB123DE
+        statusGeaendertAm:
+          type: string
+          format: date-time
+          description: "Zeitpunkt des letzten Statuswechsels, anfangs gleich angelegtAm"
+      required:
+      - angelegtAm
+      - dienstleister
+      - erlaubteFolgestatus
+      - id
+      - lieferstatus
+      - sendungsnummer
+      - statusGeaendertAm
+    Zahlung:
+      type: object
+      properties:
+        betrag:
+          $ref: "#/components/schemas/Geld"
+        buchungsart:
+          type: string
+          enum:
+          - ZAHLUNG
+          - ERSTATTUNG
+        id:
+          type: string
+          format: uuid
+        transaktionsstatus:
+          type: string
+          enum:
+          - AUSSTEHEND
+          - ERFOLGREICH
+          - FEHLGESCHLAGEN
+          - STORNIERT
+        zahlungsart:
+          type: string
+          enum:
+          - KREDITKARTE
+          - PAYPAL
+          - LASTSCHRIFT
+          - RECHNUNG
+          - VORKASSE
+        zahlungszeitpunkt:
+          type: string
+          format: date-time
+          description: "Leer, solange kein Geld geflossen ist (D-17)"
+      required:
+      - betrag
+      - buchungsart
+      - id
+      - transaktionsstatus
+      - zahlungsart

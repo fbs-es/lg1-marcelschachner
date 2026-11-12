@@ -1,0 +1,84 @@
+<p><a routerLink="/kunden">← Alle Kunden</a></p>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Kunde wird geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    @if (kunde(); as kunde) {
+      <h1>{{ kunde.vorname }} {{ kunde.nachname }}</h1>
+      <p class="email">{{ kunde.email }}</p>
+
+      <div class="titelzeile">
+        <h2>Adressbuch</h2>
+        @if (bearbeitung() !== 'neu') {
+          <button type="button" (click)="oeffne('neu')">Adresse hinzufügen</button>
+        }
+      </div>
+
+      @if (aktionsfehler() && bearbeitung() === null) {
+        <p class="hinweis fehler" role="alert">{{ aktionsfehler() }}</p>
+      }
+
+      @if (bearbeitung() === 'neu') {
+        <section class="karte" aria-label="Neue Adresse">
+          <app-adresse-formular
+            [sendet]="sendet()"
+            [fehlermeldung]="aktionsfehler()"
+            (gespeichert)="speichern($event)"
+            (abgebrochen)="oeffne(null)"
+          />
+        </section>
+      }
+
+      <ul class="adressen">
+        @for (adresse of kunde.adressen; track adresse.id) {
+          <li class="karte">
+            @if (bearbeitung() === adresse.id) {
+              <app-adresse-formular
+                [adresse]="adresse"
+                [sendet]="sendet()"
+                [fehlermeldung]="aktionsfehler()"
+                (gespeichert)="speichern($event)"
+                (abgebrochen)="oeffne(null)"
+              />
+            } @else {
+              <address>
+                {{ adresse.anschrift.strasse }}<br />
+                {{ adresse.anschrift.postleitzahl }} {{ adresse.anschrift.stadt }}<br />
+                {{ adresse.anschrift.land }}
+              </address>
+              <p class="kennzeichen">
+                @if (adresse.istLieferadresse) {
+                  <span class="marke">Lieferadresse</span>
+                }
+                @if (adresse.istRechnungsadresse) {
+                  <span class="marke">Rechnungsadresse</span>
+                }
+              </p>
+              <div class="aktionen">
+                <button type="button" class="knopf zweitrangig" (click)="oeffne(adresse.id)">
+                  Bearbeiten
+                </button>
+                <button
+                  type="button"
+                  class="knopf zweitrangig"
+                  [disabled]="sendet()"
+                  (click)="loeschen(adresse)"
+                >
+                  Löschen
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+}

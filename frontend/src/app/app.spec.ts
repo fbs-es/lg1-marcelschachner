@@ -10,11 +10,14 @@ describe('App', () => {
     }).compileComponents();
   });
 
-  it('zeigt die Navigation zum Katalog', async () => {
+  it('zeigt die Navigation zu Katalog und Kunden', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const link = (fixture.nativeElement as HTMLElement).querySelector('nav a');
     expect(link?.textContent).toContain('Katalog');
     expect(link?.getAttribute('href')).toBe('/produkte');
+    const kunden = (fixture.nativeElement as HTMLElement).querySelectorAll('nav a')[1];
+    expect(kunden.textContent).toContain('Kunden');
+    expect(kunden.getAttribute('href')).toBe('/kunden');
   });
 });

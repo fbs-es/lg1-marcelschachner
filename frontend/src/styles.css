@@ -54,3 +54,72 @@ button:disabled {
   border-left-color: var(--schlecht);
   color: var(--schlecht);
 }
+
+.formular {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 28rem;
+}
+
+.formular label {
+  margin-top: 0.75rem;
+  font-weight: 600;
+}
+
+.formular input:not([type='checkbox']),
+.formular select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--linie);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.formular input.ng-invalid.ng-touched {
+  border-color: var(--schlecht);
+}
+
+.formular .auswahl {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: normal;
+}
+
+.feldfehler {
+  margin: 0;
+  color: var(--schlecht);
+  font-size: 0.875rem;
+}
+
+.hinweis.fehler {
+  white-space: pre-line;
+}
+
+.aktionen {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--linie);
+  text-align: left;
+}
+
+th {
+  color: var(--gedaempft);
+  font-weight: 600;
+}
+
+.titelzeile {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}

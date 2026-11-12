@@ -28,3 +28,8 @@ nav a.aktiv {
   margin: 0 auto;
   padding: 1.5rem;
 }
+
+nav {
+  display: flex;
+  gap: 1.25rem;
+}

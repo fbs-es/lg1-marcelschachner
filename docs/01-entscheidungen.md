@@ -189,3 +189,24 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Verstöße sind ungültige Eingaben (HTTP 400).
 
 **Nicht im Umfang (Schritt 2):** Titel und Listenpreis ändern (US-02.2), Bestandsbuchungen mit Historie (US-02.3).
+
+---
+
+## D-16 Kundendaten, Adressbuch-Fehler und Nebenläufigkeit
+
+**Problem:** D-06 und D-13 legen weder Feldregeln noch Statuscodes fest, und I-1 kann durch gleichzeitige Änderungen am Adressbuch verletzt werden.
+
+**Entscheidung:**
+- `vorname`, `nachname`: Pflicht, getrimmt, höchstens **100 Zeichen**.
+- `email`: Pflicht, gültiges Format, höchstens **254 Zeichen**, gespeichert getrimmt und kleingeschrieben (D-13). Eindeutigkeit zusätzlich per Unique-Index in der Datenbank.
+- Adresse: `strasse` ≤ 200, `stadt` ≤ 100, `postleitzahl` ≤ 20, `land` ISO-3166-Alpha-2.
+- Die erste Adresse der Registrierung ist immer Lieferadresse; optional zugleich Rechnungsadresse.
+- Gleiche Anschriften dürfen mehrfach im Adressbuch stehen; keine Höchstzahl.
+- Statuscodes:
+  - 400: fehlende oder ungültige Felder, keine Adresse bei der Registrierung, kein Kennzeichen gesetzt (I-2).
+  - 409: E-Mail bereits vergeben, auch bei gleichzeitiger Registrierung.
+  - 422: letzte Lieferadresse löschen oder ihr das Lieferkennzeichen entziehen (I-1).
+  - 404: unbekannter Kunde, unbekannte oder fremde Adresse.
+- `Kunde` ist Aggregatwurzel mit `@Version`; jede Änderung am Adressbuch erhöht die Version. Gleichzeitige Änderungen enden für den Verlierer mit 409 (Versionskonflikt), I-1 bleibt erhalten.
+
+**Nicht im Umfang (Schritt 3):** Name oder E-Mail ändern, Konto löschen, Standardadresse.

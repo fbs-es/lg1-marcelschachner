@@ -9,6 +9,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       <a class="marke" routerLink="/">Bestellsystem</a>
       <nav aria-label="Hauptnavigation">
         <a routerLink="/produkte" routerLinkActive="aktiv">Katalog</a>
+        <a routerLink="/kunden" routerLinkActive="aktiv">Kunden</a>
       </nav>
     </header>
     <main class="inhalt">

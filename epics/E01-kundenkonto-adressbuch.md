@@ -10,7 +10,7 @@ Kunden können ein Konto anlegen und ein persönliches Adressbuch mit Liefer- un
 
 ## Umfang
 
-- Registrierung mit Vorname, Nachname, eindeutiger E-Mail und erster Lieferadresse. → D-06, D-13
+- Registrierung mit Vorname, Nachname, eindeutiger E-Mail und erster Lieferadresse. → D-06, D-13, D-16
 - Weitere Adressen anlegen, ändern, löschen.
 - Adressen als Liefer- und/oder Rechnungsadresse kennzeichnen. → D-06
 - Schutz der Invariante "mindestens eine Lieferadresse". → I-1
@@ -25,5 +25,5 @@ Kunden können ein Konto anlegen und ein persönliches Adressbuch mit Liefer- un
 | ID | Titel | Status |
 |---|---|---|
 | [US-01.1](../stories/US-01.1-registrierung-mit-lieferadresse.md) | Registrierung mit Lieferadresse | ausformuliert |
-| US-01.2 | Weitere Liefer- oder Rechnungsadresse hinzufügen | Kandidat |
-| US-01.3 | Adresse ändern oder löschen (letzte Lieferadresse geschützt) | Kandidat |
+| [US-01.2](../stories/US-01.2-weitere-adresse-hinzufuegen.md) | Weitere Liefer- oder Rechnungsadresse hinzufügen | ausformuliert |
+| [US-01.3](../stories/US-01.3-adresse-aendern-loeschen.md) | Adresse ändern oder löschen (letzte Lieferadresse geschützt) | ausformuliert |

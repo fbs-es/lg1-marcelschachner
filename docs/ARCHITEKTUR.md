@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 2 (Produktkatalog E02, Frontend-Fundament). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 3 (Kundenkonto und Adressbuch E01). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -27,7 +27,7 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | Paket | Inhalt |
 |---|---|
 | `de.bestellsystem` | `BestellsystemApplication` (inkl. `@ConfigurationPropertiesScan`) |
-| `gemeinsam.domain` | `Geld` (Cent `long`, EUR, `@Embeddable` Record), `Anschrift` (`@Embeddable` Record, ISO-3166-Alpha-2), fachliche Ausnahmen `NichtGefundenException` (404), `KonfliktException` (409), `FachlicheAblehnungException` (422) |
+| `gemeinsam.domain` | `Geld` (Cent `long`, EUR, `@Embeddable` Record), `Anschrift` (`@Embeddable` Record, ISO-3166-Alpha-2, Längen nach D-16), fachliche Ausnahmen `NichtGefundenException` (404), `KonfliktException` (409), `FachlicheAblehnungException` (422) |
 | `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung`, `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
 | `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
 | `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
@@ -36,6 +36,10 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `katalog.persistence` | `ProduktRepository` (Spring Data JPA) |
 | `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID) |
 | `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
+| `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`; setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
+| `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`) |
+| `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
+| `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AnschriftDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
 
 ## REST-API
 
@@ -48,6 +52,13 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | GET | `/api/v1/produkte/{id}` | Produkt mit `istVerfuegbar`, 404 |
 | PUT | `/api/v1/produkte/{id}/lagerbestand` | Bestand absolut setzen, 400 bei < 0, 404, 409 Versionskonflikt |
 | GET | `/api/v1/produkte/{id}/verfuegbarkeit?menge=n` | `{produktId, menge, istVerfuegbar}`, 400 bei menge < 1, 404 |
+| POST | `/api/v1/kunden` | Registrierung mit erster Lieferadresse: 201 + `Location`, 400, 409 E-Mail vergeben |
+| GET | `/api/v1/kunden` | Übersicht ohne Adressbuch, nach Nachname und Vorname |
+| GET | `/api/v1/kunden/{kundenId}` | Kunde mit Adressbuch (Anlagereihenfolge), 404 |
+| POST | `/api/v1/kunden/{kundenId}/adressen` | 201 + `Location`, 400 (auch I-2), 404, 409 Versionskonflikt |
+| GET | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | eine Adresse, 404 auch bei fremder Adresse |
+| PUT | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | vollständig ersetzen: 200, 400, 404, 409, 422 (I-1) |
+| DELETE | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | 204, 404, 409, 422 letzte Lieferadresse (I-1) |
 
 ## Datenfluss (Beispiel Produkt anlegen)
 
@@ -80,6 +91,12 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 | `ObjectOptimisticLockingFailureException` | 409 | Versionskonflikt |
 | `FachlicheAblehnungException` | 422 | Fachlich abgelehnt |
 | alles andere | 500 | Interner Fehler (ohne interne Details, geloggt) |
+
+### Nebenläufigkeit im Adressbuch (D-16)
+
+- `Kunde` trägt `@Version`. Jede Adressbuch-Operation sperrt ihn mit `OPTIMISTIC_FORCE_INCREMENT`, damit auch eine reine Feldänderung an einer `Adresse` die Version erhöht.
+- Zwei gleichzeitige Änderungen, die zusammen I-1 verletzen würden (z. B. beide Lieferadressen löschen), scheitern für die zweite mit 409 Versionskonflikt.
+- Gleichzeitige Registrierung derselben E-Mail: der Unique-Constraint `kunde_email_eindeutig` greift, `saveAndFlush` übersetzt die Verletzung in 409.
 
 ### Sprache
 
@@ -121,6 +138,8 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 |---|---|
 | Sequenz `bestellnummer_seq` | Zähler der Bestellnummer |
 | Tabelle `produkt` | `id` UUID, `version`, `titel` (≤ 200), `listenpreis_cent` (≥ 0), `lagerbestand` (≥ 0); Index auf `titel` |
+| Tabelle `kunde` | `id` UUID, `version`, `vorname`, `nachname` (≤ 100), `email` (≤ 254, normalisiert, UNIQUE `kunde_email_eindeutig`); Index auf `(nachname, vorname)` |
+| Tabelle `adresse` | `id` UUID, `kunde_id` (FK, `ON DELETE CASCADE`, Index), `reihenfolge` (`@OrderColumn`, nullable, da von Hibernate nachgetragen), `strasse`, `stadt`, `postleitzahl`, `land`, `ist_lieferadresse`, `ist_rechnungsadresse`; CHECK mindestens ein Kennzeichen (I-2) |
 
 ### Migrationen
 
@@ -128,6 +147,7 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 |---|---|---|
 | V1 | `V1__bestellnummer_sequenz.sql` | Sequenz `bestellnummer_seq` |
 | V2 | `V2__produkt.sql` | Tabelle `produkt` mit CHECK-Constraints |
+| V3 | `V3__kunde.sql` | Tabellen `kunde` und `adresse` |
 
 ## Lokale Infrastruktur
 
@@ -144,11 +164,16 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 
 | Pfad | Inhalt |
 |---|---|
-| `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation), Routen, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
+| `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation), Routen mit `withComponentInputBinding`, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
 | `src/app/api/` | generierter Client (`npm run generate:api`, nie von Hand ändern) |
 | `src/app/gemeinsam/` | `GeldPipe` (Cent → `49,99 €`), `euroInCent` + Validator `euroBetrag` (ohne Gleitkomma), `problemMeldung` (ProblemDetail → Text) |
 | `src/app/katalog/produkt-liste` | `/produkte`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Verfügbarkeit |
 | `src/app/katalog/produkt-anlegen` | `/produkte/neu`: Formular, Feld- und Serverfehler, danach zurück zur Liste |
+| `src/app/kunde/kunden-liste` | `/kunden`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Link zum Adressbuch |
+| `src/app/kunde/kunde-registrieren` | `/kunden/neu`: Stammdaten, Lieferadresse, "auch Rechnungsadresse", danach zum Kunden |
+| `src/app/kunde/kunde-detail` | `/kunden/:kundenId`: Stammdaten und Adressbuch; hinzufügen, bearbeiten, löschen; 422/409 als Meldung |
+| `src/app/kunde/adresse-formular`, `anschrift-felder` | wiederverwendbares Adressformular (Kennzeichen-Validator I-2) und Anschriftfelder mit Regeln aus D-16 |
+| `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`) |
 
 - `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
 - `openapitools.json` pinnt den Generator auf 7.27.0 (`typescript-angular`).
@@ -161,7 +186,10 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Adapter-Unit | Mockito an der Grenze (`JavaMailSender`) | `MailBenachrichtigungsversandTest` |
 | Web | `@WebMvcTest`, MockMvc | `ZentraleFehlerbehandlungTest` (über Test-Controller `FehlerAusloesenderController`) |
 | Domain-Unit Katalog | JUnit 5, AssertJ | `ProduktTest` (US-02.1 AK1–5, D-15) |
+| Domain-Unit Kunde | JUnit 5, AssertJ | `KundeTest` (US-01.1 bis US-01.3), `EmailTest` (D-13, D-16) |
+| API-Integration Kunde | MockMvc, PostgreSQL | `KundeApiIT` (alle AK US-01.1 bis US-01.3 über HTTP) |
+| Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

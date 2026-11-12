@@ -10,7 +10,6 @@ import { problemMeldung } from '../../gemeinsam/problem-meldung';
   selector: 'app-produkt-anlegen',
   imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './produkt-anlegen.html',
-  styleUrl: './produkt-anlegen.css',
 })
 export class ProduktAnlegen {
   private readonly produkteService = inject(ProdukteService);

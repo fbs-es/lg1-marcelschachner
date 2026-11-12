@@ -1,6 +1,6 @@
 <h1>Produkt anlegen</h1>
 
-<form [formGroup]="formular" (ngSubmit)="speichern()" novalidate>
+<form class="formular" [formGroup]="formular" (ngSubmit)="speichern()" novalidate>
   <label for="titel">Titel</label>
   <input id="titel" formControlName="titel" maxlength="200" autocomplete="off" />
   @if (istUngueltig('titel')) {

@@ -8,12 +8,20 @@ import java.util.Set;
 @Embeddable
 public record Anschrift(String strasse, String stadt, String postleitzahl, String land) {
 
+    public static final int STRASSE_MAXIMALE_LAENGE = 200;
+    public static final int STADT_MAXIMALE_LAENGE = 100;
+    public static final int POSTLEITZAHL_MAXIMALE_LAENGE = 20;
+
     private static final Set<String> LAENDERCODES = Set.of(Locale.getISOCountries());
 
     public Anschrift {
-        strasse = pflichtfeld(strasse, "strasse");
-        stadt = pflichtfeld(stadt, "stadt");
-        postleitzahl = pflichtfeld(postleitzahl, "postleitzahl");
+        strasse = hoechstens(pflichtfeld(strasse, "strasse"), "strasse", STRASSE_MAXIMALE_LAENGE);
+        stadt = hoechstens(pflichtfeld(stadt, "stadt"), "stadt", STADT_MAXIMALE_LAENGE);
+        postleitzahl =
+                hoechstens(
+                        pflichtfeld(postleitzahl, "postleitzahl"),
+                        "postleitzahl",
+                        POSTLEITZAHL_MAXIMALE_LAENGE);
         land = pflichtfeld(land, "land").toUpperCase(Locale.ROOT);
         if (!LAENDERCODES.contains(land)) {
             throw new IllegalArgumentException(
@@ -26,5 +34,13 @@ public record Anschrift(String strasse, String stadt, String postleitzahl, Strin
             throw new IllegalArgumentException(name + " darf nicht leer sein");
         }
         return wert.strip();
+    }
+
+    private static String hoechstens(String wert, String name, int maximaleLaenge) {
+        if (wert.length() > maximaleLaenge) {
+            throw new IllegalArgumentException(
+                    name + " darf höchstens " + maximaleLaenge + " Zeichen haben");
+        }
+        return wert;
     }
 }

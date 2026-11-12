@@ -135,7 +135,7 @@ docs/ARCHITEKTUR.md aktualisiert, Schritt 5 in docs/fahrplan.md abgehakt.
 
 ---
 
-## [ ] 6 Mahnwesen (E06)
+## [x] 6 Mahnwesen (E06) (2026-11-12, 874b481)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E06-*.md`, `stories/US-06.1-*.md`, D-03

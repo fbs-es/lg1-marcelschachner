@@ -118,7 +118,7 @@ Fehleranzeige, Bestellbestätigung, Bestellhistorie (US-04.2, Kriterien vorher m
 
 ---
 
-## [ ] 5 Zahlungen (E05)
+## [x] 5 Zahlungen (E05) (2026-11-12, 826fd9a)
 
 **Werkzeug:** goal (Logik) + feature-dev (Endpunkte, falls Design offen)
 **Eingaben:** `epics/E05-*.md`, `stories/US-05.1-*.md`, D-05

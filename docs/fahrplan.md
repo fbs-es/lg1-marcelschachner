@@ -100,7 +100,7 @@ US-04.1 und US-08.1 vollständig. Kein Frontend.
 
 ---
 
-## [ ] 4b Checkout Frontend
+## [x] 4b Checkout Frontend (2026-11-12, 70eb08e)
 
 **Werkzeug:** feature-dev
 **Eingaben:** Ergebnis 4a, `stories/US-04.1-*.md`, `stories/US-08.1-*.md`

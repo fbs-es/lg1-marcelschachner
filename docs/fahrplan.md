@@ -169,7 +169,7 @@ US-03.1 und US-03.2 (Kriterien vorher mit mir klären).
 
 ---
 
-## [ ] 8 Versand (E07)
+## [x] 8 Versand (E07) (2026-11-12, 04c709d)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E07-*.md`, D-12

@@ -63,7 +63,7 @@ generierter API-Client, Produktliste mit Verfügbarkeit, Produkt anlegen.
 
 ---
 
-## [ ] 3 Kundenkonto & Adressbuch (E01)
+## [x] 3 Kundenkonto & Adressbuch (E01) (2026-11-12, b969a0d)
 
 **Werkzeug:** feature-dev
 **Eingaben:** `epics/E01-*.md`, `stories/US-01.1-*.md`, D-06, D-13

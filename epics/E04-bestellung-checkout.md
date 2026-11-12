@@ -29,4 +29,4 @@ Kunden geben Bestellungen auf. Preise, Rabatt und Lieferadresse werden dabei ein
 | ID | Titel | Status |
 |---|---|---|
 | [US-04.1](../stories/US-04.1-bestellung-aufgeben.md) | Bestellung aufgeben | ausformuliert |
-| US-04.2 | Bestellhistorie einsehen | Kandidat |
+| [US-04.2](../stories/US-04.2-bestellhistorie-einsehen.md) | Bestellhistorie einsehen | ausformuliert |

@@ -41,9 +41,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** US-04.1 und US-08.1 über HTTP; die feste Uhr steht auf dem 12.11.2026. */
+/** US-04.1, US-04.2 und US-08.1 über HTTP; die feste Uhr steht auf dem 12.11.2026. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import({TestcontainersKonfiguration.class, FesteUhrKonfiguration.class})
@@ -408,6 +409,108 @@ class BestellungApiIT {
         }
     }
 
+    @Nested
+    class Bestellhistorie {
+
+        private String aelteste;
+        private String mitGutschein;
+        private String neueste;
+
+        private void beispielbestellungen() throws Exception {
+            aelteste = bestellnummer(gibAuf(einBuch(), null));
+            // Bestellungen an anderen Tagen entstehen sonst nur mit einer zweiten Uhr.
+            jdbc.sql(
+                            "UPDATE bestellung SET bestelldatum = DATE '2026-11-10' WHERE bestellnummer = ?")
+                    .param(aelteste)
+                    .update();
+            mitGutschein = bestellnummer(gibAuf(zweiBuecherEineLampe(), "HERBST10"));
+            neueste = bestellnummer(gibAuf(einBuch(), null));
+        }
+
+        @Test
+        @DisplayName(
+                "US-04.2 AK1: Historie zeigt Bestellnummer, Datum, Positionsanzahl und Gesamtwert")
+        void listeDerEigenenBestellungen() throws Exception {
+            beispielbestellungen();
+
+            mockMvc.perform(get(BESTELLUNGEN, kundenId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(3))
+                    .andExpect(jsonPath("$[1].bestellnummer").value(mitGutschein))
+                    .andExpect(jsonPath("$[1].bestelldatum").value("2026-11-12"))
+                    .andExpect(jsonPath("$[1].anzahlPositionen").value(2))
+                    .andExpect(jsonPath("$[1].gesamtwert.cent").value(4950))
+                    .andExpect(jsonPath("$[1].gesamtwert.waehrung").value("EUR"))
+                    .andExpect(jsonPath("$[2].bestelldatum").value("2026-11-10"))
+                    .andExpect(jsonPath("$[2].anzahlPositionen").value(1))
+                    .andExpect(jsonPath("$[2].gesamtwert.cent").value(1250));
+        }
+
+        @Test
+        @DisplayName("US-04.2 AK2: neueste zuerst, bei gleichem Datum höhere Bestellnummer zuerst")
+        void neuesteZuerst() throws Exception {
+            beispielbestellungen();
+
+            mockMvc.perform(get(BESTELLUNGEN, kundenId))
+                    .andExpect(jsonPath("$[0].bestellnummer").value(neueste))
+                    .andExpect(jsonPath("$[1].bestellnummer").value(mitGutschein))
+                    .andExpect(jsonPath("$[2].bestellnummer").value(aelteste));
+        }
+
+        @Test
+        @DisplayName("US-04.2 AK3: Gesamtwert bleibt beim Ändern des Gutscheins eingefroren")
+        void gesamtwertBerechnet() throws Exception {
+            mitGutschein = bestellnummer(gibAuf(zweiBuecherEineLampe(), "HERBST10"));
+            jdbc.sql("UPDATE gutschein SET prozent = 50 WHERE code = 'HERBST10'").update();
+
+            mockMvc.perform(get(BESTELLUNGEN, kundenId))
+                    .andExpect(jsonPath("$[0].bestellnummer").value(mitGutschein))
+                    .andExpect(jsonPath("$[0].gesamtwert.cent").value(4950));
+        }
+
+        @Test
+        @DisplayName("US-04.2 AK4: Bestellungen anderer Kunden erscheinen nicht")
+        void nurEigene() throws Exception {
+            Kunde bernd =
+                    kundeService.registriere(
+                            "Bernd", "Beispiel", "bernd@example.de", NEBENSTRASSE, false);
+            gibAuf(bernd.getId(), einBuch(), bernd.getAdressen().getFirst().getId(), null)
+                    .andExpect(status().isCreated());
+            String eigene = bestellnummer(gibAuf(einBuch(), null));
+
+            mockMvc.perform(get(BESTELLUNGEN, kundenId))
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].bestellnummer").value(eigene));
+        }
+
+        @Test
+        @DisplayName("US-04.2 AK5: ohne Bestellungen ist die Historie leer")
+        void leer() throws Exception {
+            mockMvc.perform(get(BESTELLUNGEN, kundenId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("US-04.2 AK6: Historie eines unbekannten Kunden ergibt 404")
+        void unbekannterKunde() throws Exception {
+            mockMvc.perform(get(BESTELLUNGEN, UUID.randomUUID()))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.title").value("Nicht gefunden"));
+        }
+
+        @Test
+        @DisplayName("US-04.2: Historie braucht unabhängig von der Bestellanzahl 2 Abfragen")
+        void historieOhneNPlusEins() throws Exception {
+            gibAuf(einBuch(), null).andExpect(status().isCreated());
+            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(2);
+
+            gibAuf(zweiBuecherEineLampe(), "HERBST10").andExpect(status().isCreated());
+            gibAuf(einBuch(), null).andExpect(status().isCreated());
+            assertThat(abfragen(get(BESTELLUNGEN, kundenId))).isEqualTo(2);
+        }
+    }
+
     @Test
     @DisplayName("Fahrplan 4a: Bestellabruf braucht unabhängig von der Positionszahl 2 Abfragen")
     void bestellabrufOhneNPlusEins() throws Exception {
@@ -424,11 +527,15 @@ class BestellungApiIT {
     }
 
     private long abfragenFuerAbruf(String bestellnummer) throws Exception {
+        return abfragen(get(BESTELLUNG, kundenId, bestellnummer));
+    }
+
+    private long abfragen(RequestBuilder anfrage) throws Exception {
         Statistics statistik = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistik.setStatisticsEnabled(true);
         statistik.clear();
         try {
-            mockMvc.perform(get(BESTELLUNG, kundenId, bestellnummer)).andExpect(status().isOk());
+            mockMvc.perform(anfrage).andExpect(status().isOk());
             return statistik.getPrepareStatementCount();
         } finally {
             statistik.setStatisticsEnabled(false);

@@ -60,6 +60,8 @@ describe('KundeDetail', () => {
   async function geladen(kunde: Kunde = ANNA): Promise<void> {
     http.expectOne('/api/v1/kunden/k1').flush(kunde);
     await fixture.whenStable();
+    http.expectOne('/api/v1/kunden/k1/bestellungen').flush([]);
+    await fixture.whenStable();
   }
 
   beforeEach(async () => {

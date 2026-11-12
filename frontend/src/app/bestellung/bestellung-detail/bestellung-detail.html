@@ -1,0 +1,89 @@
+<p><a [routerLink]="['/kunden', kundenId()]">← Zum Kunden</a></p>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Bestellung wird geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    @if (bestellung(); as bestellung) {
+      @if (aufgegeben()) {
+        <p class="hinweis erfolg" role="status">
+          Vielen Dank! Die Bestellung {{ bestellung.bestellnummer }} wurde aufgegeben.
+        </p>
+      }
+
+      <h1>Bestellung {{ bestellung.bestellnummer }}</h1>
+
+      <dl class="eckdaten">
+        <dt>Bestelldatum</dt>
+        <dd>{{ bestellung.bestelldatum | date: 'dd.MM.yyyy' }}</dd>
+        <dt>Fällig am</dt>
+        <dd>{{ bestellung.faelligAm | date: 'dd.MM.yyyy' }}</dd>
+        <dt>Lieferanschrift</dt>
+        <dd>
+          <address>
+            {{ bestellung.lieferanschrift.strasse }}<br />
+            {{ bestellung.lieferanschrift.postleitzahl }} {{ bestellung.lieferanschrift.stadt
+            }}<br />
+            {{ bestellung.lieferanschrift.land }}
+          </address>
+        </dd>
+      </dl>
+
+      <table class="positionen">
+        <thead>
+          <tr>
+            <th scope="col" class="zahl">Pos.</th>
+            <th scope="col">Produkt</th>
+            <th scope="col" class="zahl">Menge</th>
+            <th scope="col" class="zahl">Einzelpreis</th>
+            <th scope="col" class="zahl">Zwischenbetrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (position of bestellung.positionen; track position.zeilennummer) {
+            <tr>
+              <td class="zahl">{{ position.zeilennummer }}</td>
+              <td>{{ position.titel }}</td>
+              <td class="zahl">{{ position.menge }}</td>
+              <td class="zahl">{{ position.einzelpreis | geld }}</td>
+              <td class="zahl">{{ position.zwischenbetrag | geld }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" colspan="4">Warenwert</th>
+            <td class="zahl">{{ bestellung.warenwert | geld }}</td>
+          </tr>
+          @if (bestellung.gutscheincode) {
+            <tr class="rabatt">
+              <th scope="row" colspan="4">Rabatt (Gutschein {{ bestellung.gutscheincode }})</th>
+              <td class="zahl">−{{ bestellung.rabattBetrag | geld }}</td>
+            </tr>
+          }
+          <tr class="gesamt">
+            <th scope="row" colspan="4">Gesamtwert</th>
+            <td class="zahl">{{ bestellung.gesamtwert | geld }}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <h2>Zahlung</h2>
+      <ul class="zahlungen">
+        @for (zahlung of bestellung.zahlungen; track zahlung.id) {
+          <li>
+            {{ zahlungsartName(zahlung.zahlungsart) }}: {{ zahlung.betrag | geld }},
+            {{ transaktionsstatusName(zahlung.transaktionsstatus) }}
+          </li>
+        }
+      </ul>
+    }
+  }
+}

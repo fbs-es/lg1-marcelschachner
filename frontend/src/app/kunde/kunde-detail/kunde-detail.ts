@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 
 import { Adresse, AdresseEingabe, AdressbuchService, Kunde, KundenService } from '../../api';
+import { Bestellhistorie } from '../../bestellung/bestellhistorie/bestellhistorie';
 import { problemMeldung } from '../../gemeinsam/problem-meldung';
 import { AdresseFormular } from '../adresse-formular/adresse-formular';
 
@@ -13,7 +14,7 @@ type Bearbeitung = null | 'neu' | string;
 
 @Component({
   selector: 'app-kunde-detail',
-  imports: [RouterLink, AdresseFormular],
+  imports: [RouterLink, AdresseFormular, Bestellhistorie],
   templateUrl: './kunde-detail.html',
   styleUrl: './kunde-detail.css',
 })

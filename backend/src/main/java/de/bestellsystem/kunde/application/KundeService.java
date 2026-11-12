@@ -59,6 +59,13 @@ public class KundeService {
         return repository.findeMitAdressen(kundenId).orElseThrow(() -> nichtGefunden(kundenId));
     }
 
+    /** Wirft 404, wenn der Kunde nicht existiert, ohne ihn zu laden. */
+    public void pruefeVorhanden(UUID kundenId) {
+        if (!repository.existsById(kundenId)) {
+            throw nichtGefunden(kundenId);
+        }
+    }
+
     public Adresse findeAdresse(UUID kundenId, UUID adressId) {
         return finde(kundenId).adresse(adressId);
     }

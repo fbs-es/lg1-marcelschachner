@@ -17,6 +17,7 @@ model/adresse.ts
 model/anschrift.ts
 model/bestellposition.ts
 model/bestellung-aufgeben.ts
+model/bestellung-uebersicht.ts
 model/bestellung.ts
 model/geld.ts
 model/kunde-uebersicht.ts

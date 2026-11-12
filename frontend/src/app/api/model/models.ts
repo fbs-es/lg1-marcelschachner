@@ -4,6 +4,7 @@ export * from './anschrift';
 export * from './bestellposition';
 export * from './bestellung';
 export * from './bestellung-aufgeben';
+export * from './bestellung-uebersicht';
 export * from './geld';
 export * from './kunde';
 export * from './kunde-uebersicht';

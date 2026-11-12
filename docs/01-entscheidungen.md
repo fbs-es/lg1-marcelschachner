@@ -231,3 +231,20 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Auch bei Gesamtwert 0 € wird die erste Zahlung über 0,00 € mit Status `AUSSTEHEND` angelegt (I-5).
 
 **Nicht im Umfang (Schritt 4a):** Gutschein anlegen (US-08.2), Bestellhistorie (US-04.2). Tests legen Gutscheine direkt an.
+
+---
+
+## D-18 Checkout im Frontend und Bestellhistorie
+
+**Problem:** Ohne Login ist offen, wer im Frontend bestellt. Ein Warenkorb ist keine Entität (E04), und Gesamtwert und Rabatt darf nur das Backend berechnen. Für US-04.2 fehlten Inhalt und Reihenfolge der Liste.
+
+**Entscheidung:**
+- Der Warenkorb lebt nur im Browser-Speicher; Neuladen der Seite leert ihn. Gleiche Produkte werden schon dort zu einem Eintrag zusammengefasst.
+- Der Warenkorb zeigt Produkt, Listenpreis und Menge, aber **keine** Zwischenbeträge, Rabatte oder Summen. Diese zeigt erst die Bestellbestätigung mit den Werten des Backends (D-01).
+- Nur verfügbare Produkte (`istVerfuegbar`) lassen sich in den Warenkorb legen. Ob der Bestand reicht, prüft erst der Checkout (409).
+- Der Kunde wird im Checkout aus der Kundenliste gewählt; angeboten werden nur seine Lieferadressen, die erste ist vorgewählt.
+- Das Gutscheinfeld nimmt genau einen Code auf; ein neuer Code ersetzt den alten (US-08.1 AK7). Ablehnungen (409, 422) erscheinen als Meldung; Warenkorb und Eingaben bleiben erhalten, man kann ohne Code weiterbestellen.
+- Nach erfolgreichem Checkout wird der Warenkorb geleert und die Bestellansicht als Bestätigung gezeigt.
+- Bestellhistorie (US-04.2): `GET /api/v1/kunden/{kundenId}/bestellungen` mit Bestellnummer, Bestelldatum, Anzahl Positionen und Gesamtwert; sortiert nach Bestelldatum absteigend, dann Bestellnummer absteigend (numerisch, D-14); 404 bei unbekanntem Kunden. Sie steht auf der Kundenseite unter dem Adressbuch.
+
+**Nicht im Umfang (Schritt 4b):** Warenkorb über Neuladen hinweg, Vorschau von Rabatt und Gesamtwert vor dem Bestellen, Bezahlstatus in der Historie (Schritt 5), Seitenaufteilung.

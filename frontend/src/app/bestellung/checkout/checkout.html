@@ -1,0 +1,142 @@
+<h1>Warenkorb</h1>
+
+@if (warenkorb.istLeer()) {
+  <div class="hinweis">
+    <p class="meldung">Der Warenkorb ist leer.</p>
+    <a routerLink="/produkte">Zum Katalog</a>
+  </div>
+} @else {
+  <table class="positionen">
+    <thead>
+      <tr>
+        <th scope="col">Produkt</th>
+        <th scope="col" class="zahl">Listenpreis</th>
+        <th scope="col" class="zahl">Menge</th>
+        <th scope="col"><span class="unsichtbar">Aktion</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (eintrag of warenkorb.eintraege(); track eintrag.produkt.id) {
+        <tr>
+          <td>{{ eintrag.produkt.titel }}</td>
+          <td class="zahl">{{ eintrag.produkt.listenpreis | geld }}</td>
+          <td class="zahl">
+            <input
+              class="menge"
+              type="number"
+              min="1"
+              step="1"
+              [value]="eintrag.menge"
+              [attr.aria-label]="'Menge ' + eintrag.produkt.titel"
+              (change)="aendereMenge(eintrag, $any($event.target))"
+            />
+          </td>
+          <td>
+            <button
+              type="button"
+              class="knopf zweitrangig"
+              [attr.aria-label]="eintrag.produkt.titel + ' entfernen'"
+              (click)="warenkorb.entferne(eintrag.produkt.id)"
+            >
+              Entfernen
+            </button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <p class="erklaerung">Zwischenbeträge, Rabatt und Gesamtwert stehen in der Bestellbestätigung.</p>
+
+  <h2>Kasse</h2>
+
+  @switch (kundenZustand()) {
+    @case ('laedt') {
+      <p class="hinweis" role="status">Kunden werden geladen …</p>
+    }
+    @case ('fehler') {
+      <div class="hinweis fehler" role="alert">
+        <p class="meldung">{{ kundenFehler() }}</p>
+        <button type="button" (click)="ladeKunden()">Erneut versuchen</button>
+      </div>
+    }
+    @default {
+      @if (kunden().length === 0) {
+        <div class="hinweis">
+          <p class="meldung">Es gibt noch keine Kunden.</p>
+          <a routerLink="/kunden/neu">Kunde registrieren</a>
+        </div>
+      } @else {
+        <form class="formular" [formGroup]="formular" (ngSubmit)="bestellen()" novalidate>
+          <label for="kundenId">Kunde</label>
+          <select id="kundenId" formControlName="kundenId">
+            <option value="" disabled>Bitte wählen …</option>
+            @for (kunde of kunden(); track kunde.id) {
+              <option [value]="kunde.id">
+                {{ kunde.vorname }} {{ kunde.nachname }} ({{ kunde.email }})
+              </option>
+            }
+          </select>
+          @if (istUngueltig('kundenId')) {
+            <p class="feldfehler">Bitte einen Kunden wählen.</p>
+          }
+
+          <fieldset class="lieferadressen">
+            <legend>Lieferadresse</legend>
+            @switch (adressenZustand()) {
+              @case (null) {
+                <p class="erklaerung">Zuerst einen Kunden wählen.</p>
+              }
+              @case ('laedt') {
+                <p class="hinweis" role="status">Lieferadressen werden geladen …</p>
+              }
+              @case ('fehler') {
+                <div class="hinweis fehler" role="alert">
+                  <p class="meldung">{{ adressenFehler() }}</p>
+                  <button type="button" (click)="ladeLieferadressenErneut()">
+                    Erneut versuchen
+                  </button>
+                </div>
+              }
+              @default {
+                @for (adresse of lieferadressen(); track adresse.id) {
+                  <label class="auswahl">
+                    <input type="radio" formControlName="lieferadresseId" [value]="adresse.id" />
+                    {{ adresse.anschrift.strasse }}, {{ adresse.anschrift.postleitzahl }}
+                    {{ adresse.anschrift.stadt }}, {{ adresse.anschrift.land }}
+                  </label>
+                } @empty {
+                  <p class="hinweis">Dieser Kunde hat keine Lieferadresse.</p>
+                }
+              }
+            }
+            @if (istUngueltig('lieferadresseId') && adressenZustand() !== 'laedt') {
+              <p class="feldfehler">Bitte eine Lieferadresse wählen.</p>
+            }
+          </fieldset>
+
+          <label for="zahlungsart">Zahlungsart</label>
+          <select id="zahlungsart" formControlName="zahlungsart">
+            @for (art of zahlungsarten; track art.wert) {
+              <option [value]="art.wert">{{ art.name }}</option>
+            }
+          </select>
+
+          <label for="gutscheincode">Gutscheincode (optional)</label>
+          <input id="gutscheincode" formControlName="gutscheincode" maxlength="50" />
+          @if (istUngueltig('gutscheincode')) {
+            <p class="feldfehler">Ein Gutscheincode hat höchstens 50 Zeichen.</p>
+          }
+
+          @if (fehlermeldung()) {
+            <p class="hinweis fehler" role="alert">{{ fehlermeldung() }}</p>
+          }
+
+          <div class="aktionen">
+            <button type="submit" [disabled]="sendet()">Zahlungspflichtig bestellen</button>
+            <a class="knopf zweitrangig" routerLink="/produkte">Weiter einkaufen</a>
+          </div>
+        </form>
+      }
+    }
+  }
+}

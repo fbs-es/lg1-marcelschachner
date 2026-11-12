@@ -30,5 +30,16 @@ export const routes: Routes = [
     title: 'Kunde',
     loadComponent: () => import('./kunde/kunde-detail/kunde-detail').then((m) => m.KundeDetail),
   },
+  {
+    path: 'kunden/:kundenId/bestellungen/:bestellnummer',
+    title: 'Bestellung',
+    loadComponent: () =>
+      import('./bestellung/bestellung-detail/bestellung-detail').then((m) => m.BestellungDetail),
+  },
+  {
+    path: 'checkout',
+    title: 'Warenkorb',
+    loadComponent: () => import('./bestellung/checkout/checkout').then((m) => m.Checkout),
+  },
   { path: '**', redirectTo: 'produkte' },
 ];

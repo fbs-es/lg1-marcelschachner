@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 4a (Checkout im Backend, E04 + E08). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 4b (Checkout im Frontend, Bestellhistorie US-04.2). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -38,7 +38,7 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
 | `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`, `lieferanschrift(id)` (Snapshot, 422 ohne Lieferkennzeichen); setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
 | `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`) |
-| `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
+| `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, `pruefeVorhanden` (404 ohne Laden), Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
 | `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
 | `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
 | `gutschein.persistence` | `GutscheinRepository.findByCode` |
@@ -46,9 +46,9 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabrik `ausstehend`), Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
 | `zahlung.api` | `ZahlungDto` |
 | `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`. `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
-| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen) |
-| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen); `Positionswunsch` |
-| `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto` |
+| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18) |
+| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (zwei Abfragen, US-04.2); `Positionswunsch` |
+| `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto`, `BestellungUebersichtDto` |
 
 ## REST-API
 
@@ -69,6 +69,7 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | PUT | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | vollständig ersetzen: 200, 400, 404, 409, 422 (I-1) |
 | DELETE | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | 204, 404, 409, 422 letzte Lieferadresse (I-1) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen` | Checkout: 201 + `Location`, 400 (keine Positionen, Menge < 1), 404 (Kunde, Produkt, fremde Adresse), 409 Bestand, 422 (keine Lieferadresse, Gutschein abgelaufen/unbekannt), D-17 |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen` | Bestellhistorie (US-04.2): Nummer, Datum, Anzahl Positionen, Gesamtwert; neueste zuerst; 404 unbekannter Kunde |
 | GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen; 404 auch bei fremder Bestellung |
 
 ## Datenfluss (Beispiel Produkt anlegen)
@@ -78,6 +79,16 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
   → ProduktController (@Valid ProduktAnlegenDto) → ProduktService.legeAn (@Transactional)
   → new Produkt(...) prüft Invarianten → ProduktRepository.save → INSERT produkt
   ← 201 ProduktDto ← Router zurück zur Liste ← GET /api/v1/produkte
+```
+
+## Datenfluss (Checkout im Frontend)
+
+```
+Produktliste ─ Warenkorb.lege (nur Browser) ─ /checkout
+  → KundenService.listeKunden, findeKunde (Lieferadressen)
+  → BestellungenService.gibBestellungAuf ─ POST /api/v1/kunden/{id}/bestellungen
+  ← 201: Warenkorb.leere → /kunden/{id}/bestellungen/{nr}?aufgegeben=ja → findeBestellung
+  ← 409/422: problemMeldung über dem Bestellknopf, Warenkorb und Eingaben bleiben
 ```
 
 ## Datenfluss (Checkout, US-04.1)
@@ -204,16 +215,21 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 
 | Pfad | Inhalt |
 |---|---|
-| `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation), Routen mit `withComponentInputBinding`, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
+| `src/app/app.ts`, `app.routes.ts`, `app.config.ts` | Layout (Kopfzeile, Navigation mit `Warenkorb (n)`), Routen mit `withComponentInputBinding`, `provideApi('')`, `LOCALE_ID de-DE`, `DEFAULT_CURRENCY_CODE EUR` |
 | `src/app/api/` | generierter Client (`npm run generate:api`, nie von Hand ändern) |
 | `src/app/gemeinsam/` | `GeldPipe` (Cent → `49,99 €`), `euroInCent` + Validator `euroBetrag` (ohne Gleitkomma), `problemMeldung` (ProblemDetail → Text) |
-| `src/app/katalog/produkt-liste` | `/produkte`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Verfügbarkeit |
+| `src/app/katalog/produkt-liste` | `/produkte`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Verfügbarkeit, "In den Warenkorb" nur bei `istVerfuegbar` |
 | `src/app/katalog/produkt-anlegen` | `/produkte/neu`: Formular, Feld- und Serverfehler, danach zurück zur Liste |
 | `src/app/kunde/kunden-liste` | `/kunden`: Laden, Fehler mit Wiederholen, Leerzustand, Tabelle mit Link zum Adressbuch |
 | `src/app/kunde/kunde-registrieren` | `/kunden/neu`: Stammdaten, Lieferadresse, "auch Rechnungsadresse", danach zum Kunden |
-| `src/app/kunde/kunde-detail` | `/kunden/:kundenId`: Stammdaten und Adressbuch; hinzufügen, bearbeiten, löschen; 422/409 als Meldung |
+| `src/app/kunde/kunde-detail` | `/kunden/:kundenId`: Stammdaten und Adressbuch; hinzufügen, bearbeiten, löschen; 422/409 als Meldung; darunter die Bestellhistorie |
 | `src/app/kunde/adresse-formular`, `anschrift-felder` | wiederverwendbares Adressformular (Kennzeichen-Validator I-2) und Anschriftfelder mit Regeln aus D-16 |
-| `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`) |
+| `src/app/bestellung/warenkorb.ts` | `Warenkorb` (Signals, nur im Speicher, D-18): `lege` (fasst zusammen), `aendereMenge`, `entferne`, `leere`, `stueckzahl` |
+| `src/app/bestellung/bezeichnungen.ts` | deutsche Namen für Zahlungsart und Transaktionsstatus |
+| `src/app/bestellung/checkout` | `/checkout`: Warenkorb ohne Summen, Kunde wählen, Lieferadressen des Kunden (`switchMap`), Zahlungsart, Gutscheincode; 409/422 als Meldung, Eingaben bleiben; Erfolg leert den Warenkorb |
+| `src/app/bestellung/bestellung-detail` | `/kunden/:kundenId/bestellungen/:bestellnummer`: Bestellansicht, mit `?aufgegeben=ja` zugleich Bestätigung |
+| `src/app/bestellung/bestellhistorie` | `<app-bestellhistorie>`: Liste mit Link zur Bestellansicht, Laden, Fehler, Leerzustand |
+| `src/styles.css` | globale Formular- und Tabellenstile (`.formular`, `.feldfehler`, `.aktionen`, `table`, `.zahl`, `.unsichtbar`) |
 
 - `proxy.conf.json` leitet `/api` an `http://localhost:8080` weiter (`npm start`).
 - `openapitools.json` pinnt den Generator auf 7.27.0 (`typescript-angular`).
@@ -229,10 +245,10 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Domain-Unit Kunde | JUnit 5, AssertJ | `KundeTest` (US-01.1 bis US-01.3), `EmailTest` (D-13, D-16) |
 | API-Integration Kunde | MockMvc, PostgreSQL | `KundeApiIT` (alle AK US-01.1 bis US-01.3 über HTTP) |
 | Domain-Unit Checkout | JUnit 5, AssertJ | `BestellungTest` (US-04.1 AK1–8, US-08.1 AK1–9), `GutscheinTest` (US-08.1, D-04, D-17) |
-| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-08.1, Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
+| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-04.2, US-08.1; Historie ebenfalls 2 Abfragen bei 1 und 3 Bestellungen; Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
 | Nebenläufigkeit Checkout | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `BestellungNebenlaeufigkeitIT` (letzte Lampe: genau einer; genug Bestand: beide) |
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |
 | Spec-Drift | `OpenApiSpezifikationIT`; `./gradlew aktualisiereOpenApi` schreibt die Datei neu | ADR 0002 |
-| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |
+| Frontend | Vitest, `TestBed`, `HttpTestingController` | `produkt-liste.spec.ts`, `produkt-anlegen.spec.ts`, `kunden-liste.spec.ts`, `kunde-registrieren.spec.ts`, `kunde-detail.spec.ts`, `warenkorb.spec.ts`, `checkout.spec.ts` (US-04.1, US-08.1 AK4/6/7), `bestellung-detail.spec.ts`, `bestellhistorie.spec.ts` (US-04.2), `geld.pipe.spec.ts`, `euro-eingabe.spec.ts`, `problem-meldung.spec.ts` |

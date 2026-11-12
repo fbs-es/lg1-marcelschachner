@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Produkt, ProdukteService } from '../../api';
+import { Warenkorb } from '../../bestellung/warenkorb';
 import { GeldPipe } from '../../gemeinsam/geld.pipe';
 import { problemMeldung } from '../../gemeinsam/problem-meldung';
 
@@ -15,6 +16,7 @@ type Zustand = 'laedt' | 'fehler' | 'geladen';
 })
 export class ProduktListe {
   private readonly produkteService = inject(ProdukteService);
+  protected readonly warenkorb = inject(Warenkorb);
 
   protected readonly zustand = signal<Zustand>('laedt');
   protected readonly produkte = signal<Produkt[]>([]);

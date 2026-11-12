@@ -118,8 +118,23 @@ th {
   font-weight: 600;
 }
 
+.zahl {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .titelzeile {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+}
+
+/* Nur für Screenreader, z. B. Spaltenköpfe ohne sichtbaren Text. */
+.unsichtbar {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

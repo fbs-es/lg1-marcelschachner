@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -86,6 +87,22 @@ class BestellungController {
                         .buildAndExpand(bestellung.getBestellnummer())
                         .toUri();
         return ResponseEntity.created(ort).body(BestellungDto.von(bestellung));
+    }
+
+    @GetMapping
+    @Operation(
+            operationId = "listeBestellungen",
+            summary = "Bestellhistorie des Kunden, neueste zuerst (US-04.2)")
+    @ApiResponse(responseCode = "200", description = "Liste, leer ohne Bestellungen")
+    @ApiResponse(
+            responseCode = "404",
+            description = "Kunde existiert nicht",
+            content =
+                    @Content(
+                            mediaType = PROBLEM_JSON,
+                            schema = @Schema(implementation = ProblemDetail.class)))
+    List<BestellungUebersichtDto> historie(@PathVariable UUID kundenId) {
+        return service.historie(kundenId).stream().map(BestellungUebersichtDto::von).toList();
     }
 
     @GetMapping("/{bestellnummer}")

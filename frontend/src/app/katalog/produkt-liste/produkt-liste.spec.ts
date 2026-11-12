@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Produkt, provideApi } from '../../api';
+import { Warenkorb } from '../../bestellung/warenkorb';
 import { ProduktListe } from './produkt-liste';
 
 const LAMPE: Produkt = {
@@ -79,5 +80,26 @@ describe('ProduktListe', () => {
     http.expectOne('/api/v1/produkte').flush([LAMPE]);
     await fixture.whenStable();
     expect(text()).toContain('Stehlampe');
+  });
+
+  it('legt verfügbare Produkte in den Warenkorb, nicht verfügbare nicht', async () => {
+    http
+      .expectOne('/api/v1/produkte')
+      .flush([
+        LAMPE,
+        { ...LAMPE, id: '2', titel: 'Tischlampe', lagerbestand: 0, istVerfuegbar: false },
+      ]);
+    await fixture.whenStable();
+    const zeilen = (fixture.nativeElement as HTMLElement).querySelectorAll('tbody tr');
+    expect(zeilen[1].querySelector('button')).toBeNull();
+
+    const knopf = zeilen[0].querySelector('button')!;
+    expect(knopf.getAttribute('aria-label')).toBe('Stehlampe in den Warenkorb');
+    knopf.click();
+    knopf.click();
+    await fixture.whenStable();
+
+    expect(TestBed.inject(Warenkorb).mengeVon('1')).toBe(2);
+    expect(zeilen[0].textContent).toContain('2 im Warenkorb');
   });
 });

@@ -24,6 +24,7 @@
             <th scope="col" class="zahl">Listenpreis</th>
             <th scope="col" class="zahl">Lagerbestand</th>
             <th scope="col">Verfügbarkeit</th>
+            <th scope="col"><span class="unsichtbar">Warenkorb</span></th>
           </tr>
         </thead>
         <tbody>
@@ -37,6 +38,21 @@
                   <span class="marke verfuegbar">verfügbar</span>
                 } @else {
                   <span class="marke ausverkauft">nicht verfügbar</span>
+                }
+              </td>
+              <td class="warenkorb">
+                @if (produkt.istVerfuegbar) {
+                  <button
+                    type="button"
+                    class="knopf zweitrangig"
+                    [attr.aria-label]="produkt.titel + ' in den Warenkorb'"
+                    (click)="warenkorb.lege(produkt)"
+                  >
+                    In den Warenkorb
+                  </button>
+                  @if (warenkorb.mengeVon(produkt.id); as menge) {
+                    <span class="im-warenkorb">{{ menge }} im Warenkorb</span>
+                  }
                 }
               </td>
             </tr>

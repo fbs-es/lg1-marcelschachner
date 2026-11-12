@@ -26,6 +26,8 @@ import { Bestellung } from '../model/bestellung';
 // @ts-ignore
 import { BestellungAufgeben } from '../model/bestellung-aufgeben';
 // @ts-ignore
+import { BestellungUebersicht } from '../model/bestellung-uebersicht';
+// @ts-ignore
 import { ProblemDetail } from '../model/problem-detail';
 
 // @ts-ignore
@@ -254,5 +256,100 @@ export class BestellungenService extends BaseService {
       ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
       reportProgress: reportProgress,
     });
+  }
+
+  /**
+   * Bestellhistorie des Kunden, neueste zuerst (US-04.2)
+   * @endpoint get /api/v1/kunden/{kundenId}/bestellungen
+   * @param kundenId
+   * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
+   * @param reportProgress flag to report request and response progress.
+   * @param options additional options
+   */
+  public listeBestellungen(
+    kundenId: string,
+    observe?: 'body',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json' | 'application/problem+json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<Array<BestellungUebersicht>>;
+  public listeBestellungen(
+    kundenId: string,
+    observe?: 'response',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json' | 'application/problem+json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpResponse<Array<BestellungUebersicht>>>;
+  public listeBestellungen(
+    kundenId: string,
+    observe?: 'events',
+    reportProgress?: boolean,
+    options?: {
+      httpHeaderAccept?: 'application/json' | 'application/problem+json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<HttpEvent<Array<BestellungUebersicht>>>;
+  public listeBestellungen(
+    kundenId: string,
+    observe: any = 'body',
+    reportProgress: boolean = false,
+    options?: {
+      httpHeaderAccept?: 'application/json' | 'application/problem+json';
+      context?: HttpContext;
+      transferCache?: boolean;
+    },
+  ): Observable<any> {
+    if (kundenId === null || kundenId === undefined) {
+      throw new Error(
+        'Required parameter kundenId was null or undefined when calling listeBestellungen.',
+      );
+    }
+
+    let localVarHeaders = this.defaultHeaders;
+
+    const localVarHttpHeaderAcceptSelected: string | undefined =
+      options?.httpHeaderAccept ??
+      this.configuration.selectHeaderAccept(['application/json', 'application/problem+json']);
+    if (localVarHttpHeaderAcceptSelected !== undefined) {
+      localVarHeaders = localVarHeaders.set('Accept', localVarHttpHeaderAcceptSelected);
+    }
+
+    const localVarHttpContext: HttpContext = options?.context ?? new HttpContext();
+
+    const localVarTransferCache: boolean = options?.transferCache ?? true;
+
+    let responseType_: 'text' | 'json' | 'blob' = 'json';
+    if (localVarHttpHeaderAcceptSelected) {
+      if (localVarHttpHeaderAcceptSelected.startsWith('text')) {
+        responseType_ = 'text';
+      } else if (this.configuration.isJsonMime(localVarHttpHeaderAcceptSelected)) {
+        responseType_ = 'json';
+      } else {
+        responseType_ = 'blob';
+      }
+    }
+
+    let localVarPath = `/api/v1/kunden/${this.configuration.encodeParam({ name: 'kundenId', value: kundenId, in: 'path', style: 'simple', explode: false, dataType: 'string', dataFormat: 'uuid' })}/bestellungen`;
+    const { basePath, withCredentials } = this.configuration;
+    return this.httpClient.request<Array<BestellungUebersicht>>(
+      'get',
+      `${basePath}${localVarPath}`,
+      {
+        context: localVarHttpContext,
+        responseType: <any>responseType_,
+        ...(withCredentials ? { withCredentials } : {}),
+        headers: localVarHeaders,
+        observe: observe,
+        ...(localVarTransferCache !== undefined ? { transferCache: localVarTransferCache } : {}),
+        reportProgress: reportProgress,
+      },
+    );
   }
 }

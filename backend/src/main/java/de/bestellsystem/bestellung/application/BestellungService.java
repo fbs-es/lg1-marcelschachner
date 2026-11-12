@@ -102,4 +102,10 @@ public class BestellungService {
         repository.findeZahlungen(bestellnummer);
         return bestellung;
     }
+
+    /** Bestellungen des Kunden mit Positionen, neueste zuerst (US-04.2); 404 bei unbekanntem. */
+    public List<Bestellung> historie(UUID kundenId) {
+        kundeService.pruefeVorhanden(kundenId);
+        return repository.findeHistorie(kundenId);
+    }
 }

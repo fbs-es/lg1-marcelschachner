@@ -1,0 +1,65 @@
+<p><a [routerLink]="['/kunden', kundenId()]">← Zum Kunden</a></p>
+
+<h1>Merkliste</h1>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Merkliste wird geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    <form class="merken" [formGroup]="formular" (ngSubmit)="merken()" novalidate>
+      <label for="produktId">Produkt</label>
+      <select id="produktId" formControlName="produktId">
+        <option value="" disabled>Bitte wählen …</option>
+        @for (produkt of produkte(); track produkt.id) {
+          <option [value]="produkt.id">{{ produkt.titel }}</option>
+        }
+      </select>
+      <button type="submit" [disabled]="sendet()">Merken</button>
+    </form>
+    @if (produktId.invalid && produktId.touched) {
+      <p class="feldfehler">Bitte ein Produkt wählen.</p>
+    }
+
+    @if (aktionsfehler()) {
+      <p class="hinweis fehler" role="alert">{{ aktionsfehler() }}</p>
+    }
+
+    @if (eintraege().length === 0) {
+      <p class="hinweis">Noch nichts gemerkt.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Produkt</th>
+            <th scope="col">Gemerkt am</th>
+            <th scope="col" class="zahl">Preis</th>
+            <th scope="col">Verfügbarkeit</th>
+            <th scope="col"><span class="unsichtbar">Aktionen</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (eintrag of eintraege(); track eintrag.produktId) {
+            <tr>
+              <td>{{ eintrag.titel }}</td>
+              <td>{{ eintrag.hinzugefuegtAm | date: 'dd.MM.yyyy' }}</td>
+              <td class="zahl">{{ eintrag.listenpreis | geld }}</td>
+              <td>{{ eintrag.istVerfuegbar ? 'verfügbar' : 'nicht verfügbar' }}</td>
+              <td>
+                <button type="button" [disabled]="sendet()" (click)="entfernen(eintrag)">
+                  Entfernen
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}

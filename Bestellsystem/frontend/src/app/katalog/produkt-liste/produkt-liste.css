@@ -1,0 +1,27 @@
+.marke {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.verfuegbar {
+  color: var(--gut);
+}
+
+.ausverkauft {
+  color: var(--schlecht);
+}
+
+.meldung {
+  margin-top: 0;
+  white-space: pre-line;
+}
+
+.warenkorb {
+  white-space: nowrap;
+}
+
+.im-warenkorb {
+  margin-left: 0.5rem;
+  color: var(--gedaempft);
+  font-size: 0.875rem;
+}

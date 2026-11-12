@@ -1,0 +1,72 @@
+<div class="titelzeile">
+  <h1>Produkte</h1>
+  <a class="knopf" routerLink="/produkte/neu">Produkt anlegen</a>
+</div>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Produkte werden geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    @if (produkte().length === 0) {
+      <p class="hinweis">Noch keine Produkte im Katalog.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Titel</th>
+            <th scope="col" class="zahl">Listenpreis</th>
+            <th scope="col" class="zahl">Lagerbestand</th>
+            <th scope="col">Verfügbarkeit</th>
+            <th scope="col"><span class="unsichtbar">Warenkorb</span></th>
+            <th scope="col"><span class="unsichtbar">Pflege</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (produkt of produkte(); track produkt.id) {
+            <tr>
+              <td>{{ produkt.titel }}</td>
+              <td class="zahl">{{ produkt.listenpreis | geld }}</td>
+              <td class="zahl">{{ produkt.lagerbestand }}</td>
+              <td>
+                @if (produkt.istVerfuegbar) {
+                  <span class="marke verfuegbar">verfügbar</span>
+                } @else {
+                  <span class="marke ausverkauft">nicht verfügbar</span>
+                }
+              </td>
+              <td class="warenkorb">
+                @if (produkt.istVerfuegbar) {
+                  <button
+                    type="button"
+                    class="knopf zweitrangig"
+                    [attr.aria-label]="produkt.titel + ' in den Warenkorb'"
+                    (click)="warenkorb.lege(produkt)"
+                  >
+                    In den Warenkorb
+                  </button>
+                  @if (warenkorb.mengeVon(produkt.id); as menge) {
+                    <span class="im-warenkorb">{{ menge }} im Warenkorb</span>
+                  }
+                }
+              </td>
+              <td>
+                <a
+                  [routerLink]="['/produkte', produkt.id]"
+                  [attr.aria-label]="produkt.titel + ' bearbeiten'"
+                  >Bearbeiten</a
+                >
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}

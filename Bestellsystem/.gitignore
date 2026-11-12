@@ -1,0 +1,48 @@
+# Umgebung und Geheimnisse
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.project
+.classpath
+.settings/
+.factorypath
+*.swp
+
+# Claude Code (lokale Einstellungen; Skills und CLAUDE.md werden versioniert)
+.claude/settings.local.json
+
+# Backend (Gradle / Java)
+backend/build/
+backend/.gradle/
+backend/bin/
+*.class
+*.log
+hs_err_pid*
+replay_pid*
+
+# Frontend (Angular / Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+frontend/out-tsc/
+npm-debug.log*
+yarn-error.log*
+
+# Generierter API-Client (wird per npm run generate:api erzeugt)
+# Bewusst NICHT ignoriert: frontend/src/app/api/ wird versioniert, damit der Build ohne laufendes Backend geht.
+
+# Docker-Volumes lokal
+.data/

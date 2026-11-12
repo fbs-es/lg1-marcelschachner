@@ -1,0 +1,53 @@
+.hinweis.erfolg {
+  border-left-color: var(--gut);
+  color: var(--gut);
+}
+
+h2 {
+  margin-top: 1.5rem;
+  font-size: 1.15rem;
+}
+
+.eckdaten {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.eckdaten dt {
+  color: var(--gedaempft);
+  font-weight: 600;
+}
+
+.eckdaten dd {
+  margin: 0;
+}
+
+address {
+  font-style: normal;
+}
+
+tfoot th {
+  text-align: right;
+}
+
+.gesamt th,
+.gesamt td {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.zahlungen {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.bezahlstatus .status {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.bezahlstatus .status.bezahlt {
+  color: var(--gut);
+}

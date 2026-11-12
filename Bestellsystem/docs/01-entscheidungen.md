@@ -1,0 +1,337 @@
+# Entscheidungen zu Lücken und Widersprüchen
+
+Verbindlich für Modell, Epics und Stories. Jede Entscheidung hat eine ID (`D-xx`), auf die Epics und Stories verweisen. Änderungen hier zuerst, dann im Code.
+
+---
+
+## D-01 Gesamtwert: gespeichert oder berechnet?
+
+**Problem:** Der Text sagt, die Bestellung "speichert den berechneten Gesamtwert" und der Gesamtwert müsse "dynamisch berechnet werden können". Beides gleichzeitig ist redundant und kann auseinanderlaufen.
+
+**Entscheidung:** Der Gesamtwert ist ein **abgeleitetes Attribut** (`/gesamtwert` im UML) und wird nicht als eigene Spalte gespeichert.
+
+```
+warenwert   = Summe aller Positionen (menge × einzelpreis)
+gesamtwert  = max(0, warenwert − rabattBetrag)
+```
+
+Historische Stabilität ist trotzdem gegeben, weil alle Eingaben eingefroren sind: der Einzelpreis je Position (D-10) und der Rabattbetrag (D-04).
+
+**Begründung:** Eine einzige Wahrheitsquelle. Ein gespeicherter Wert müsste bei jeder Änderung nachgezogen werden.
+
+**Option für später:** Falls Reports den Wert brauchen, darf er als Cache persistiert werden; die Berechnung bleibt maßgeblich.
+
+---
+
+## D-02 Zahlung "mindestens eine" vs. offene Beträge
+
+**Problem:** "Eine Bestellung erfordert mindestens eine Zahlungsbuchung" (1..\*). Gleichzeitig soll die Mahnprüfung offene Beträge finden. Wäre jede Bestellung sofort bezahlt, gäbe es nichts zu mahnen.
+
+**Entscheidung:** Die Multiplizität **1..\* bleibt**. Beim Checkout wird sofort eine Zahlung mit Status `AUSSTEHEND` und der gewählten Zahlungsart angelegt. Nur Buchungen mit Status `ERFOLGREICH` zählen als geleistet.
+
+**Begründung:** Erfüllt den Originaltext wörtlich und bildet die Realität ab: Die Zahlungsabsicht existiert ab Bestellung, das Geld kommt später (Rechnung, Vorkasse) oder gar nicht (fehlgeschlagen).
+
+---
+
+## D-03 Zahlungsrückstand braucht eine Fälligkeit
+
+**Problem:** Ohne Fälligkeitsdatum ist jede gerade aufgegebene, noch unbezahlte Bestellung sofort "im Rückstand".
+
+**Entscheidung:**
+- Bestellung erhält `faelligAm = bestelldatum + Zahlungsziel`. Das Zahlungsziel ist konfigurierbar, Standard **14 Tage**.
+- **Rückstand** liegt vor, wenn `offenerBetrag > 0` **und** `stichtag > faelligAm`.
+- Neue Entität **Mahnung** (je Bestellung: Datum, gemahnter Betrag). Sie verhindert, dass derselbe Kunde täglich gemahnt wird.
+- Eine Bestellung wird höchstens **einmal pro Mahnintervall** gemahnt (Standard **7 Tage**, konfigurierbar).
+- Pro Mahnprüfung erhält der Kunde **eine** E-Mail an seine hinterlegte Adresse, die **jede** überfällige Bestellung mit ihrem jeweils offenen Betrag auflistet ("mit dem jeweils offenen Betrag").
+
+**Nicht im Umfang:** Mahnstufen, Mahngebühren, Verzugszinsen, Inkasso.
+
+---
+
+## D-04 Gutschein: Art des Rabatts und Wirkung
+
+**Problem:** "Rabattwert" ist unklar (Prozent oder Euro?), ebenso, ob und wann der Rabatt in den Gesamtwert einfließt und wann das Ablaufdatum geprüft wird.
+
+**Entscheidung:**
+- Gutschein erhält `rabattArt ∈ {PROZENT, FESTBETRAG}`.
+  - `PROZENT`: 0 < rabattWert ≤ 100, bezogen auf den Warenwert.
+  - `FESTBETRAG`: rabattWert > 0, in Euro.
+- Der Rabatt gilt auf den **Warenwert**; der Gesamtwert wird nie negativ.
+- Gültigkeit wird **beim Checkout** geprüft: gültig, solange `bestelldatum ≤ ablaufdatum` (Ablaufdatum inklusive).
+- Der berechnete Rabatt wird als `rabattBetrag` **in der Bestellung eingefroren**. Spätere Änderungen am Gutschein ändern keine bestehende Bestellung.
+- Gutscheincode ist eindeutig und wird ohne Beachtung der Groß-/Kleinschreibung verglichen.
+- Ein Gutschein darf beliebig oft verwendet werden (laut Text). Nutzungslimits sind nicht im Umfang.
+
+---
+
+## D-05 Erstattungen und Transaktionsstatus
+
+**Problem:** Erstattungen werden erwähnt, aber nicht modelliert. Unklar, welche Zahlungen zur "Summe aller geleisteten Zahlungen" zählen.
+
+**Entscheidung:**
+- Zahlung erhält `buchungsart ∈ {ZAHLUNG, ERSTATTUNG}`. Der Betrag ist **immer positiv**; die Buchungsart bestimmt das Vorzeichen.
+- `transaktionsstatus ∈ {AUSSTEHEND, ERFOLGREICH, FEHLGESCHLAGEN, STORNIERT}`.
+- Es gilt:
+
+```
+bezahlteSumme          = Σ ERFOLGREICH-ZAHLUNG − Σ ERFOLGREICH-ERSTATTUNG
+offenerBetrag          = max(0, gesamtwert − bezahlteSumme)
+istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
+```
+
+- Überzahlung ist erlaubt (offenerBetrag = 0), die Rückzahlung erfolgt als Erstattung.
+
+---
+
+## D-06 Liefer- und Rechnungsadressen
+
+**Problem:** Wie wird zwischen Liefer- und Rechnungsadresse unterschieden? Wie wird "mindestens eine Lieferadresse" erzwungen?
+
+**Entscheidung:**
+- Adresse erhält zwei Kennzeichen: `istLieferadresse` und `istRechnungsadresse`. Mindestens eines ist wahr; eine Adresse darf beides sein.
+- **Invariante:** Ein Kunde hat stets mindestens eine Adresse mit `istLieferadresse = wahr`.
+  - Die Registrierung verlangt eine Lieferadresse.
+  - Das Löschen der letzten Lieferadresse oder das Entfernen ihres Kennzeichens wird abgelehnt.
+- Adressen sind Teil des Kunden (Komposition): Wird der Kunde gelöscht, werden seine Adressen gelöscht.
+
+**Nicht im Umfang:** Rechnungsadresse in der Bestellung (der Text verlangt nur den Lieferadress-Snapshot). Leicht nachrüstbar über D-08.
+
+---
+
+## D-07 Merkliste als Assoziationsklasse
+
+**Entscheidung:**
+- Kunde ↔ Produkt ist eine \*-zu-\*-Beziehung mit der Assoziationsklasse **Merklisteneintrag** (`hinzugefuegtAm`, Pflicht).
+- Eindeutig pro (Kunde, Produkt). Erneutes Merken ist ein No-op und behält das ursprüngliche Datum.
+- "Aktuell beobachtete Artikel abrufen" liefert die Produkte der Merkliste, neueste zuerst, inklusive aktueller Verfügbarkeit.
+- Wird ein Produkt aus dem Katalog entfernt, verschwinden seine Merklisteneinträge.
+
+---
+
+## D-08 Lieferadress-Snapshot
+
+**Entscheidung:** Der Snapshot ist ein **Wertobjekt** `Anschrift` (Straße, Stadt, PLZ, Land), das beim Checkout aus der gewählten Lieferadresse **kopiert** und in die Bestellung eingebettet wird. Es gibt **keine Referenz** auf `Adresse`. Ändern oder Löschen einer Adresse im Adressbuch beeinflusst bestehende Bestellungen nicht.
+
+---
+
+## D-09 Lagerbestand und Verfügbarkeit
+
+**Problem:** Wann sinkt der Lagerbestand? Was heißt "verfügbar"?
+
+**Entscheidung:**
+- `istVerfuegbar()` ⇔ `lagerbestand > 0`; zusätzlich `istVerfuegbar(menge)` ⇔ `lagerbestand ≥ menge`.
+- Der Lagerbestand wird **beim Checkout** reduziert, atomar zusammen mit dem Anlegen der Bestellung (eine Transaktion). Reicht der Bestand für eine Position nicht, wird die gesamte Bestellung abgelehnt.
+- Lagerbestand ist nie negativ.
+
+**Nicht im Umfang:** Reservierung im Warenkorb, Storno mit Bestandsrückbuchung (eigenes Epic, wenn benötigt).
+
+---
+
+## D-10 Positionen: Preis, Zeilennummer, Duplikate
+
+**Entscheidung:**
+- `einzelpreis` = `listenpreis` des Produkts zum Checkout-Zeitpunkt, danach unveränderlich.
+- `zeilennummer` läuft je Bestellung lückenlos ab 1.
+- Dasselbe Produkt erscheint höchstens einmal je Bestellung; Mehrfachauswahl wird zu einer Position mit summierter Menge zusammengefasst.
+- `menge ≥ 1`.
+- `zwischenbetrag = menge × einzelpreis`.
+
+---
+
+## D-11 Geldbeträge und Währung
+
+**Entscheidung:** Alle Beträge als **ganzzahlige Cent** (bzw. Dezimaltyp), **nie Gleitkomma**. Eine Währung: **EUR**. Prozentrabatte werden kaufmännisch auf ganze Cent gerundet.
+
+---
+
+## D-12 Versandpakete
+
+**Entscheidung:**
+- `lieferstatus ∈ {ANGELEGT, UEBERGEBEN, IN_ZUSTELLUNG, ZUGESTELLT, RETOURE, VERLOREN}`, Übergänge nur vorwärts (außer `RETOURE`/`VERLOREN` als Endzustände).
+- Sendungsverfolgungsnummer ist eindeutig je Logistikdienstleister.
+- Pakete verweisen **nicht** auf einzelne Positionen (Text verlangt das nicht).
+
+**Nicht im Umfang:** Zuordnung "welche Position in welchem Paket", Anbindung an Tracking-APIs der Dienstleister.
+
+---
+
+## D-13 Kennungen und Eindeutigkeit
+
+**Entscheidung:**
+- Technische IDs (Kunde, Adresse, Produkt, Zahlung) sind UUIDs.
+- `bestellnummer` ist eine fachliche, lesbare, eindeutige Nummer (z. B. `B-2026-000123`).
+- E-Mail-Adresse ist eindeutig, Vergleich ohne Groß-/Kleinschreibung, getrimmt.
+
+---
+
+## D-14 Zähler der Bestellnummer
+
+**Problem:** D-13 gibt das Format `B-JJJJ-NNNNNN` vor, aber nicht, ob der Zähler je Jahr neu beginnt.
+
+**Entscheidung:**
+- Der Zähler ist **global** (eine Datenbanksequenz) und beginnt im neuen Jahr **nicht** wieder bei 1.
+- Das Jahr im Präfix ist das Jahr des **Bestelldatums**.
+- Der Zähler ist mindestens sechsstellig mit führenden Nullen; größere Werte werden nicht abgeschnitten.
+- Lücken (z. B. nach abgebrochenem Checkout) sind zulässig; verlangt ist nur Eindeutigkeit.
+
+**Begründung:** Nebenläufig sicher ohne eigene Sperrlogik, auch über mehrere Instanzen.
+
+---
+
+## D-15 Produktdaten beim Anlegen
+
+**Problem:** Das Domänenmodell nennt `titel`, `listenpreis` und `lagerbestand`, aber keine Regeln für gültige Werte.
+
+**Entscheidung:**
+- `titel` wird getrimmt, ist Pflicht und höchstens **200 Zeichen** lang. Er muss **nicht eindeutig** sein.
+- `listenpreis` ≥ 0 Cent (0 € ist erlaubt, z. B. Gratisartikel).
+- `lagerbestand` ≥ 0 bereits beim Anlegen (I-7).
+- Verstöße sind ungültige Eingaben (HTTP 400).
+
+**Nicht im Umfang (Schritt 2):** Titel und Listenpreis ändern (US-02.2), Bestandsbuchungen mit Historie (US-02.3).
+
+---
+
+## D-16 Kundendaten, Adressbuch-Fehler und Nebenläufigkeit
+
+**Problem:** D-06 und D-13 legen weder Feldregeln noch Statuscodes fest, und I-1 kann durch gleichzeitige Änderungen am Adressbuch verletzt werden.
+
+**Entscheidung:**
+- `vorname`, `nachname`: Pflicht, getrimmt, höchstens **100 Zeichen**.
+- `email`: Pflicht, gültiges Format, höchstens **254 Zeichen**, gespeichert getrimmt und kleingeschrieben (D-13). Eindeutigkeit zusätzlich per Unique-Index in der Datenbank.
+- Adresse: `strasse` ≤ 200, `stadt` ≤ 100, `postleitzahl` ≤ 20, `land` ISO-3166-Alpha-2.
+- Die erste Adresse der Registrierung ist immer Lieferadresse; optional zugleich Rechnungsadresse.
+- Gleiche Anschriften dürfen mehrfach im Adressbuch stehen; keine Höchstzahl.
+- Statuscodes:
+  - 400: fehlende oder ungültige Felder, keine Adresse bei der Registrierung, kein Kennzeichen gesetzt (I-2).
+  - 409: E-Mail bereits vergeben, auch bei gleichzeitiger Registrierung.
+  - 422: letzte Lieferadresse löschen oder ihr das Lieferkennzeichen entziehen (I-1).
+  - 404: unbekannter Kunde, unbekannte oder fremde Adresse.
+- `Kunde` ist Aggregatwurzel mit `@Version`; jede Änderung am Adressbuch erhöht die Version. Gleichzeitige Änderungen enden für den Verlierer mit 409 (Versionskonflikt), I-1 bleibt erhalten.
+
+**Nicht im Umfang (Schritt 3):** Name oder E-Mail ändern, Konto löschen, Standardadresse.
+
+---
+
+## D-17 Checkout: Ablehnungen, Gutscheincode, erste Zahlung
+
+**Problem:** US-04.1 und US-08.1 legen fest, *dass* abgelehnt wird, aber nicht mit welchem Statuscode. Offen sind außerdem die Schreibweise des Gutscheincodes, der Zahlungszeitpunkt einer ausstehenden Zahlung und der Fall Gesamtwert 0 €.
+
+**Entscheidung:**
+- Statuscodes beim Checkout:
+  - 400: keine Positionen (US-04.1 AK7), `menge < 1`, fehlende Pflichtfelder.
+  - 404: unbekannter Kunde, unbekanntes Produkt, Adresse existiert nicht oder gehört einem anderen Kunden (wie D-16).
+  - 409: Bestand reicht nicht (US-04.1 AK3). Der Hinweis nennt **alle** Produkte, deren Bestand nicht reicht.
+  - 422: Adresse ohne Lieferkennzeichen (US-04.1 AK8), Gutschein abgelaufen oder unbekannt (US-08.1 AK4, AK6).
+- Jede Ablehnung lässt keinen Bestand verändert und legt keine Bestellung an.
+- Gutscheincode wird getrimmt und **großgeschrieben** gespeichert und gesucht (D-04).
+- Prozentrabatt hat höchstens zwei Nachkommastellen.
+- Die API nimmt höchstens **einen** Gutscheincode je Checkout an. "Zweiter Code ersetzt den ersten" (US-08.1 AK7) ist Verhalten der Eingabemaske.
+- Die erste Zahlung (D-02) hat **keinen** `zahlungszeitpunkt`; er wird erst beim Statuswechsel gesetzt (E05).
+- Auch bei Gesamtwert 0 € wird die erste Zahlung über 0,00 € mit Status `AUSSTEHEND` angelegt (I-5).
+
+**Nicht im Umfang (Schritt 4a):** Gutschein anlegen (US-08.2), Bestellhistorie (US-04.2). Tests legen Gutscheine direkt an.
+
+---
+
+## D-18 Checkout im Frontend und Bestellhistorie
+
+**Problem:** Ohne Login ist offen, wer im Frontend bestellt. Ein Warenkorb ist keine Entität (E04), und Gesamtwert und Rabatt darf nur das Backend berechnen. Für US-04.2 fehlten Inhalt und Reihenfolge der Liste.
+
+**Entscheidung:**
+- Der Warenkorb lebt nur im Browser-Speicher; Neuladen der Seite leert ihn. Gleiche Produkte werden schon dort zu einem Eintrag zusammengefasst.
+- Der Warenkorb zeigt Produkt, Listenpreis und Menge, aber **keine** Zwischenbeträge, Rabatte oder Summen. Diese zeigt erst die Bestellbestätigung mit den Werten des Backends (D-01).
+- Nur verfügbare Produkte (`istVerfuegbar`) lassen sich in den Warenkorb legen. Ob der Bestand reicht, prüft erst der Checkout (409).
+- Der Kunde wird im Checkout aus der Kundenliste gewählt; angeboten werden nur seine Lieferadressen, die erste ist vorgewählt.
+- Das Gutscheinfeld nimmt genau einen Code auf; ein neuer Code ersetzt den alten (US-08.1 AK7). Ablehnungen (409, 422) erscheinen als Meldung; Warenkorb und Eingaben bleiben erhalten, man kann ohne Code weiterbestellen.
+- Nach erfolgreichem Checkout wird der Warenkorb geleert und die Bestellansicht als Bestätigung gezeigt.
+- Bestellhistorie (US-04.2): `GET /api/v1/kunden/{kundenId}/bestellungen` mit Bestellnummer, Bestelldatum, Anzahl Positionen und Gesamtwert; sortiert nach Bestelldatum absteigend, dann Bestellnummer absteigend (numerisch, D-14); 404 bei unbekanntem Kunden. Sie steht auf der Kundenseite unter dem Adressbuch.
+
+**Nicht im Umfang (Schritt 4b):** Warenkorb über Neuladen hinweg, Vorschau von Rabatt und Gesamtwert vor dem Bestellen, Bezahlstatus in der Historie (Schritt 5), Seitenaufteilung.
+
+---
+
+## D-19 Zahlungsstatus ändern und Erstattung buchen
+
+**Problem:** E05 nennt Statuswechsel und Erstattungen, die Stories US-05.2 und US-05.3 sind aber nur Kandidaten. Offen waren erlaubte Übergänge, Ablauf und Obergrenze einer Erstattung sowie der Umfang im Frontend.
+
+**Entscheidung:**
+- Ein Status lässt sich nur **aus `AUSSTEHEND`** ändern, und zwar nach `ERFOLGREICH`, `FEHLGESCHLAGEN` oder `STORNIERT`. Diese drei sind endgültig; jeder andere Wechsel (auch `AUSSTEHEND` → `AUSSTEHEND`) wird mit 422 abgelehnt. Das gilt für Zahlungen und Erstattungen gleichermaßen.
+- Der `zahlungszeitpunkt` wird aus der Uhr gesetzt, wenn eine Buchung `ERFOLGREICH` wird, und bleibt bei `FEHLGESCHLAGEN` und `STORNIERT` leer (präzisiert D-17).
+- Eine Erstattung entsteht mit Status `AUSSTEHEND` und wird über denselben Statuswechsel abgeschlossen. Zahlungsart und Betrag gibt der Aufrufer an.
+- Betrag einer Erstattung: > 0 (sonst 400) und ≤ **erstattbarer Betrag** = `bezahlteSumme − Σ AUSSTEHEND-ERSTATTUNG` (sonst 422). So kann `bezahlteSumme` nie negativ werden.
+- Statuswechsel und Erstattung erhöhen die Version der Bestellung (`OPTIMISTIC_FORCE_INCREMENT`); gleichzeitige Buchungen auf derselben Bestellung scheitern für die zweite mit 409.
+- Teilzahlungen sind weitere Buchungen `ZAHLUNG` mit Status `AUSSTEHEND` (Domäne); ein Endpunkt dafür folgt mit US-05.2.
+- API: `PUT …/bestellungen/{nr}/zahlungen/{zahlungId}/status`, `POST …/bestellungen/{nr}/erstattungen` (201 + `Location` auf `GET …/zahlungen/{zahlungId}`). Bestellung und Historie liefern `bezahlteSumme`, `offenerBetrag` und `istVollstaendigBezahlt`.
+- Frontend: Bestellansicht zeigt Bezahlstatus, bezahlte Summe und offenen Betrag; die Historie zeigt je Bestellung „bezahlt“ oder den offenen Betrag. Bedienelemente für Statuswechsel und Erstattung gibt es noch nicht.
+
+**Nicht im Umfang (Schritt 5):** Zahlungsanbieter-Anbindung, Endpunkt für Teilzahlungen, Bedienung im Frontend.
+
+## D-20 Mahnprüfung im Detail und täglicher Mahnlauf
+
+**Problem:** D-03 legt fest, dass eine Mahnung je Bestellung höchstens einmal pro Intervall entsteht und die E-Mail „jede überfällige Bestellung“ auflistet. Offen war, was in der E-Mail steht, wenn nur ein Teil der überfälligen Bestellungen wieder gemahnt werden darf. Ebenfalls offen waren Auslöser und Fehlerverhalten des täglichen Laufs (US-06.2).
+
+**Entscheidung:**
+- Die E-Mail listet nur die Bestellungen, die **in dieser Prüfung gemahnt** werden: Sie sind überfällig, und ihre letzte Mahnung liegt mindestens ein Mahnintervall zurück (`stichtag ≥ letzteMahnung + mahnintervall`) oder fehlt. Die Intervalle der Bestellungen sind voneinander unabhängig. Präzisiert D-03.
+- Eine Mahnung friert Datum (Stichtag) und gemahnten Betrag (offener Betrag am Stichtag) ein.
+- Das Mahnintervall muss mindestens einen Tag betragen. Damit versendet eine Wiederholung am selben Tag nichts (idempotent).
+- Der Versand läuft innerhalb der Transaktion der Prüfung. Scheitert er, wird nichts protokolliert (US-06.1 AK7), und die manuelle Prüfung antwortet mit **503**. Scheitert erst der Commit nach erfolgreichem Versand, kann die nächste Prüfung erneut mahnen: Die Zustellung gilt mindestens einmal.
+- Gleichzeitige Prüfungen desselben Kunden laufen nacheinander (Zeilensperre auf dem Kunden). Die zweite sieht die Mahnungen der ersten.
+- **Täglicher Mahnlauf:** zeitgesteuert über `bestellsystem.mahnlauf.cron`, Standard `0 0 6 * * *` in `bestellsystem.zeitzone`, mit `-` abschaltbar. Stichtag ist das heutige Datum laut Uhr. Geprüft werden alle Kunden mit mindestens einer Bestellung, deren Fälligkeit vor dem Stichtag liegt.
+- Jeder Kunde wird in einer eigenen Transaktion geprüft. Ein Fehler bei einem Kunden wird geloggt und gezählt, der Lauf geht weiter. Das Ergebnis meldet die Anzahl gemahnter und fehlgeschlagener Kunden.
+- Manuelle Auslösung, Stichtag immer heute: `POST /api/v1/kunden/{kundenId}/mahnpruefung` (ein Kunde) und `POST /api/v1/mahnlaeufe` (alle Kunden). Ohne Login sind beide offen wie die übrige API im MVP.
+
+**Nicht im Umfang (Schritt 6):** Anzeige der Mahnungen im Frontend, Nachholen ausgefallener Läufe, Sperre gegen parallele Läufe auf mehreren Instanzen.
+
+---
+
+## D-21 Merkliste im Detail: Zeitpunkt, Merken, Entfernen
+
+**Problem:** D-07 legt `hinzugefuegtAm` als Datum fest und verlangt „neueste zuerst“. Zwei am selben Tag gemerkte Produkte wären damit gleichrangig. Offen waren außerdem die Antwort beim Entfernen eines nicht gemerkten Produkts, die Form der Endpunkte und der Ort im Frontend ohne Login.
+
+**Entscheidung:**
+- Gespeichert wird der **Zeitpunkt** des Merkens (aus der Uhr). Die API liefert daraus das Merkdatum in `bestellsystem.zeitzone`. Sortiert wird nach Zeitpunkt absteigend, bei Gleichstand nach Titel. Präzisiert D-07.
+- Merken: `PUT /api/v1/kunden/{kundenId}/merkliste/{produktId}`. Neu gemerkt: **201** + `Location`. Schon gemerkt: **200**, Datum unverändert (I-4). Auch gleichzeitiges doppeltes Merken ergibt genau einen Eintrag.
+- Entfernen: `DELETE` auf denselben Pfad, immer **204**, auch wenn das Produkt nicht gemerkt war. Erneutes Merken danach setzt ein neues Datum.
+- Unbekannter Kunde: **404** bei allen Merklisten-Endpunkten. Unbekanntes Produkt beim Merken: **404**.
+- Frontend: eigene Seite `/kunden/:kundenId/merkliste`, verlinkt aus der Kundenansicht. Dort werden Produkte über eine Auswahl gemerkt und entfernt. Die Produktliste bleibt unverändert.
+
+**Nicht im Umfang (Schritt 7):** „Merken“-Knopf in der Produktliste, Übernahme in den Warenkorb.
+
+---
+
+## D-22 Versandpakete im Detail: Übergänge, Dienstleister, Zeitpunkte
+
+**Problem:** D-12 nennt die Lieferstatus und „nur vorwärts“, lässt aber offen, ob Stufen übersprungen werden dürfen, ab wann `RETOURE`/`VERLOREN` möglich sind, ob `ZUGESTELLT` endgültig ist, wie der Dienstleister erfasst wird (davon hängt I-11 ab), ob ein Paket an Bedingungen geknüpft ist und welche Zeitpunkte ein Paket führt.
+
+**Entscheidung:**
+- Vorwärtsreihenfolge `ANGELEGT → UEBERGEBEN → IN_ZUSTELLUNG → ZUGESTELLT`; Stufen dürfen übersprungen werden (z. B. `ANGELEGT → ZUGESTELLT`).
+- `RETOURE` und `VERLOREN` sind erst ab `UEBERGEBEN` erreichbar (aus `UEBERGEBEN` oder `IN_ZUSTELLUNG`).
+- Endzustände: `ZUGESTELLT`, `RETOURE`, `VERLOREN`. Rückwärts, aus einem Endzustand oder in denselben Status: **422**.
+- Ein neues Paket hat immer `ANGELEGT`.
+- Dienstleister aus fester Liste `DHL`, `DPD`, `GLS`, `HERMES`, `UPS`.
+- Sendungsnummer: getrimmt und großgeschrieben gespeichert, 1–50 Zeichen, nur Buchstaben und Ziffern. Eindeutig je Dienstleister über alle Bestellungen (I-11); doppelt: **409**.
+- Keine Bedingung an den Bezahlstatus; beliebig viele Pakete je Bestellung.
+- Ein Paket führt `angelegtAm` und `statusGeaendertAm` (Zeitpunkte aus der Uhr, beim Anlegen gleich). Keine Statushistorie.
+- Die API liefert je Paket die erlaubten Folgestatus, damit das Frontend die Regel nicht dupliziert.
+- Pfade unter der Bestellung: `POST …/bestellungen/{bestellnummer}/pakete` (201 + `Location`), `GET …/pakete/{paketId}`, `PUT …/pakete/{paketId}/status`. Unbekannte oder fremde Bestellung bzw. Paket: **404**. Die Bestellansicht enthält die Pakete.
+- Frontend: Abschnitt „Versand“ in der Bestellansicht; dort legt der Mitarbeiter ohne Login Pakete an und setzt den Status.
+
+**Nicht im Umfang (Schritt 8):** Pakete in der Bestellhistorie, Paket ändern oder löschen, Statushistorie, Benachrichtigung des Kunden.
+
+---
+
+## D-23 Produkt und Gutschein pflegen
+
+**Problem:** E02 und E08 nennen „Titel und Listenpreis ändern“ und „Gutschein anlegen“, die Stories US-02.2 und US-08.2 waren aber nur Kandidaten. Offen waren erlaubte Zeichen im Gutscheincode, der Umgang mit einem Ablaufdatum in der Vergangenheit und Statuscodes.
+
+**Entscheidung:**
+- Produkt ändern: `PUT /api/v1/produkte/{id}` ersetzt Titel und Listenpreis mit denselben Regeln wie beim Anlegen (D-15). Der Lagerbestand bleibt beim eigenen Endpunkt `PUT …/lagerbestand`. Bestehende Bestellungen behalten ihren Einzelpreis (D-10); die Merkliste zeigt den neuen Preis. Gleichzeitige Änderungen: 409 Versionskonflikt.
+- Gutschein anlegen: `POST /api/v1/gutscheine` (201 + `Location`), Liste `GET /api/v1/gutscheine` nach Code sortiert, je Gutschein `istGueltig` (heute laut Uhr ≤ Ablaufdatum, D-04).
+- Neue Codes bestehen aus 1–50 Buchstaben, Ziffern und `-`; gespeichert getrimmt und großgeschrieben (D-17). Sonst 400. Beim Einlösen bleibt die Suche unverändert: ein Code mit anderen Zeichen ist dort einfach unbekannt (422, US-08.1 AK6).
+- Prozent: größer 0, höchstens 100, höchstens zwei Nachkommastellen; Festbetrag größer 0 Cent. Der Rabattwert muss zur Rabattart passen (genau einer von `prozent` und `festbetrag`). Verstöße: 400.
+- Code bereits vergeben, auch in anderer Schreibweise oder gleichzeitig angelegt: **409**.
+- Ablaufdatum vor heute (laut Uhr): **422**. Heute ist erlaubt.
+- Frontend: Seite `/produkte/:id` mit den Formularen „Stammdaten“ und „Lagerbestand“, erreichbar über „Bearbeiten“ in der Produktliste; Menüpunkt „Gutscheine“ mit Liste und Formular „Gutschein anlegen“.
+
+**Nicht im Umfang (Schritt 11):** Gutschein ändern oder löschen, Produkt löschen, Bestandsbuchungen mit Historie (US-02.3).

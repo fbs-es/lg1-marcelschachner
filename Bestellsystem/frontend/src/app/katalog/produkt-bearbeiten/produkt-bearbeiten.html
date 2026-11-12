@@ -1,0 +1,75 @@
+<p><a routerLink="/produkte">← Zum Katalog</a></p>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Produkt wird geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    @if (produkt(); as produkt) {
+      <h1>{{ produkt.titel }}</h1>
+      <p class="erklaerung">
+        Aktuell {{ produkt.listenpreis | geld }}, Bestand {{ produkt.lagerbestand }} ({{
+          produkt.istVerfuegbar ? 'verfügbar' : 'nicht verfügbar'
+        }}). Preisänderungen gelten nur für künftige Bestellungen.
+      </p>
+
+      <h2>Stammdaten</h2>
+      <form class="formular" [formGroup]="stammdaten" (ngSubmit)="speichereStammdaten()" novalidate>
+        <label for="titel">Titel</label>
+        <input id="titel" formControlName="titel" maxlength="200" autocomplete="off" />
+        @if (istUngueltig('titel')) {
+          <p class="feldfehler">Bitte einen Titel mit höchstens 200 Zeichen angeben.</p>
+        }
+
+        <label for="listenpreis">Listenpreis (€)</label>
+        <input id="listenpreis" formControlName="listenpreis" inputmode="decimal" />
+        @if (istUngueltig('listenpreis')) {
+          <p class="feldfehler">Bitte einen Betrag wie 49,99 angeben.</p>
+        }
+
+        @if (stammdatenRueckmeldung(); as meldung) {
+          <p
+            class="hinweis"
+            [class.fehler]="meldung.art === 'fehler'"
+            [attr.role]="meldung.art === 'fehler' ? 'alert' : 'status'"
+          >
+            {{ meldung.text }}
+          </p>
+        }
+
+        <div class="aktionen">
+          <button type="submit" [disabled]="sendetStammdaten()">Stammdaten speichern</button>
+        </div>
+      </form>
+
+      <h2>Lagerbestand</h2>
+      <form class="formular" [formGroup]="bestand" (ngSubmit)="speichereBestand()" novalidate>
+        <label for="lagerbestand">Lagerbestand</label>
+        <input id="lagerbestand" type="number" min="0" step="1" formControlName="lagerbestand" />
+        @if (istUngueltig('lagerbestand')) {
+          <p class="feldfehler">Bitte eine ganze Zahl ab 0 angeben.</p>
+        }
+
+        @if (bestandRueckmeldung(); as meldung) {
+          <p
+            class="hinweis"
+            [class.fehler]="meldung.art === 'fehler'"
+            [attr.role]="meldung.art === 'fehler' ? 'alert' : 'status'"
+          >
+            {{ meldung.text }}
+          </p>
+        }
+
+        <div class="aktionen">
+          <button type="submit" [disabled]="sendetBestand()">Lagerbestand speichern</button>
+        </div>
+      </form>
+    }
+  }
+}

@@ -1,0 +1,103 @@
+<h1>Gutscheine</h1>
+
+@switch (zustand()) {
+  @case ('laedt') {
+    <p class="hinweis" role="status">Gutscheine werden geladen …</p>
+  }
+  @case ('fehler') {
+    <div class="hinweis fehler" role="alert">
+      <p class="meldung">{{ fehlermeldung() }}</p>
+      <button type="button" (click)="laden()">Erneut versuchen</button>
+    </div>
+  }
+  @default {
+    @if (gutscheine().length === 0) {
+      <p class="hinweis">Noch keine Gutscheine angelegt.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Code</th>
+            <th scope="col" class="zahl">Rabatt</th>
+            <th scope="col">Gültig bis</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (gutschein of gutscheine(); track gutschein.id) {
+            <tr>
+              <td>{{ gutschein.code }}</td>
+              <td class="zahl">
+                @if (gutschein.festbetrag; as betrag) {
+                  {{ betrag | geld }}
+                } @else {
+                  {{ gutschein.prozent | number: '1.0-2' }} %
+                }
+              </td>
+              <td>{{ gutschein.ablaufdatum | date: 'dd.MM.yyyy' }}</td>
+              <td>
+                @if (gutschein.istGueltig) {
+                  <span class="marke verfuegbar">gültig</span>
+                } @else {
+                  <span class="marke ausverkauft">abgelaufen</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}
+
+<h2>Gutschein anlegen</h2>
+<form class="formular" [formGroup]="formular" (ngSubmit)="anlegen()" novalidate>
+  <label for="code">Code</label>
+  <input
+    id="code"
+    formControlName="code"
+    maxlength="60"
+    autocomplete="off"
+    placeholder="HERBST10"
+  />
+  @if (istUngueltig('code')) {
+    <p class="feldfehler">Bitte 1–50 Buchstaben, Ziffern oder Bindestriche angeben.</p>
+  }
+
+  <label for="rabattArt">Rabattart</label>
+  <select id="rabattArt" formControlName="rabattArt">
+    <option [value]="rabattarten.Prozent">Prozent</option>
+    <option [value]="rabattarten.Festbetrag">Festbetrag</option>
+  </select>
+
+  <label for="rabattwert">
+    {{ formular.controls.rabattArt.value === rabattarten.Prozent ? 'Prozent' : 'Betrag (€)' }}
+  </label>
+  <input id="rabattwert" formControlName="rabattwert" inputmode="decimal" />
+  @if (istUngueltig('rabattwert')) {
+    <p class="feldfehler">
+      {{
+        formular.controls.rabattArt.value === rabattarten.Prozent
+          ? 'Bitte einen Prozentwert wie 10 oder 12,5 angeben.'
+          : 'Bitte einen Betrag wie 5,00 angeben.'
+      }}
+    </p>
+  }
+
+  <label for="ablaufdatum">Gültig bis (einschließlich)</label>
+  <input id="ablaufdatum" type="date" formControlName="ablaufdatum" />
+  @if (istUngueltig('ablaufdatum')) {
+    <p class="feldfehler">Bitte ein Ablaufdatum angeben.</p>
+  }
+
+  @if (aktionsfehler()) {
+    <p class="hinweis fehler" role="alert">{{ aktionsfehler() }}</p>
+  }
+  @if (erfolg()) {
+    <p class="hinweis" role="status">{{ erfolg() }}</p>
+  }
+
+  <div class="aktionen">
+    <button type="submit" [disabled]="sendet()">Gutschein anlegen</button>
+  </div>
+</form>

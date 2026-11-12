@@ -1,0 +1,30 @@
+<h1>Produkt anlegen</h1>
+
+<form class="formular" [formGroup]="formular" (ngSubmit)="speichern()" novalidate>
+  <label for="titel">Titel</label>
+  <input id="titel" formControlName="titel" maxlength="200" autocomplete="off" />
+  @if (istUngueltig('titel')) {
+    <p class="feldfehler">Bitte einen Titel mit höchstens 200 Zeichen angeben.</p>
+  }
+
+  <label for="listenpreis">Listenpreis (€)</label>
+  <input id="listenpreis" formControlName="listenpreis" inputmode="decimal" placeholder="49,99" />
+  @if (istUngueltig('listenpreis')) {
+    <p class="feldfehler">Bitte einen Betrag wie 49,99 angeben.</p>
+  }
+
+  <label for="lagerbestand">Lagerbestand</label>
+  <input id="lagerbestand" type="number" min="0" step="1" formControlName="lagerbestand" />
+  @if (istUngueltig('lagerbestand')) {
+    <p class="feldfehler">Bitte eine ganze Zahl ab 0 angeben.</p>
+  }
+
+  @if (fehlermeldung()) {
+    <p class="hinweis fehler" role="alert">{{ fehlermeldung() }}</p>
+  }
+
+  <div class="aktionen">
+    <button type="submit" [disabled]="sendet()">Speichern</button>
+    <a class="knopf zweitrangig" routerLink="/produkte">Abbrechen</a>
+  </div>
+</form>

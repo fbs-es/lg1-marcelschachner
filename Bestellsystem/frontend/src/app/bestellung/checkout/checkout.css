@@ -1,0 +1,36 @@
+h2 {
+  margin-top: 2rem;
+  font-size: 1.15rem;
+}
+
+.menge {
+  width: 4.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--linie);
+  border-radius: 4px;
+  font: inherit;
+  text-align: right;
+}
+
+.erklaerung {
+  color: var(--gedaempft);
+  font-size: 0.875rem;
+}
+
+.lieferadressen {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border: 1px solid var(--linie);
+  border-radius: 4px;
+}
+
+.lieferadressen legend {
+  padding: 0 0.25rem;
+  font-weight: 600;
+}
+
+.lieferadressen .auswahl {
+  margin-top: 0;
+}

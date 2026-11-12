@@ -23,9 +23,9 @@ Thumbs.db
 # Claude Code (lokale Einstellungen; Skills und CLAUDE.md werden versioniert)
 .claude/settings.local.json
 
-# Backend (Maven / Java)
-backend/target/
-backend/.mvn/wrapper/maven-wrapper.jar
+# Backend (Gradle / Java)
+backend/build/
+backend/.gradle/
 *.class
 *.log
 hs_err_pid*

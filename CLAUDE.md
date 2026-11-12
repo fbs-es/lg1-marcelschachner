@@ -24,7 +24,7 @@ Rangfolge bei Widerspruch: `docs/01-entscheidungen.md` > `stories/` > `epics/` >
 
 ## Stack
 
-- Backend: Java 21, Spring Boot 3.x, Maven (Wrapper `./mvnw`), Spring Data JPA / Hibernate, Flyway, springdoc-openapi, Bean Validation.
+- Backend: Java 21, Spring Boot 3.x, Gradle 9 mit Kotlin DSL (Wrapper `./gradlew`), Spring Data JPA / Hibernate, Flyway, springdoc-openapi, Bean Validation.
 - Datenbank: PostgreSQL 16. Lokal via Docker Compose; Tests via Testcontainers (kein H2).
 - Tests Backend: JUnit 5, AssertJ, Spring Boot Test, Testcontainers, MockMvc.
 - Frontend: Angular (aktuelle LTS), Standalone Components, Signals, Reactive Forms, Angular Router.
@@ -35,8 +35,8 @@ Rangfolge bei Widerspruch: `docs/01-entscheidungen.md` > `stories/` > `epics/` >
 
 ```bash
 docker compose up -d                         # PostgreSQL + Mailpit
-cd backend && ./mvnw verify                  # Build + alle Tests
-cd backend && ./mvnw spring-boot:run         # API auf :8080, Swagger UI unter /swagger-ui.html
+cd backend && ./gradlew build                # Build + alle Tests + Spotless-Check
+cd backend && ./gradlew bootRun              # API auf :8080, Swagger UI unter /swagger-ui.html
 cd frontend && npm ci && npm start           # Angular auf :4200, Proxy auf :8080
 cd frontend && npm test                      # Frontend-Tests
 cd frontend && npm run generate:api          # Client aus laufender OpenAPI neu erzeugen
@@ -44,8 +44,9 @@ cd frontend && npm run generate:api          # Client aus laufender OpenAPI neu 
 
 Befehle entstehen in Schritt 1 und 2; bis dahin existieren sie noch nicht.
 
-- Lokal vorhanden: Java 21, Maven 3.8, Node 22, Docker 29 mit Compose. Angular CLI ist nicht global installiert: immer `npx @angular/cli` bzw. die Projekt-Skripte nutzen.
-- Backend immer über den Maven-Wrapper `./mvnw`, nie das System-`mvn` (Version 3.8 ist zu alt für aktuelle Plugins).
+- Lokal vorhanden: Java 21, Node 22, Docker 29 mit Compose. Angular CLI ist nicht global installiert: immer `npx @angular/cli` bzw. die Projekt-Skripte nutzen.
+- Backend immer über den Gradle-Wrapper `./gradlew`, nie das System-`gradle` (Version 4.4 ist zu alt).
+- Formatierung: `./gradlew spotlessApply` (google-java-format, AOSP); `build` prüft sie.
 
 ## Struktur
 
@@ -57,10 +58,11 @@ epics/     Epics
 stories/   User Stories mit Akzeptanzkriterien
 ```
 
-- Maven: `groupId` `de.bestellsystem`, `artifactId` `bestellsystem-backend`; Basispaket `de.bestellsystem`.
+- Gradle: `group` `de.bestellsystem`, `rootProject.name` `bestellsystem-backend`; Basispaket `de.bestellsystem`.
 - Backend nach Fachlichkeit geschnitten: `de.bestellsystem.{kunde, katalog, merkliste, bestellung, zahlung, gutschein, mahnwesen, versand, gemeinsam}`.
 - Je Fachpaket: `domain` (Entities, Wertobjekte, Fachlogik), `application` (Services, Transaktionen), `api` (Controller, DTOs), `persistence` (Repositories).
-- `gemeinsam`: `Geld`, `Anschrift`, Fehlerbehandlung, Uhr, Benachrichtigungs-Port.
+- Zusätzlich `infrastruktur` für Adapter zu externen Systemen (z. B. Mail) und technische Konfiguration (Uhr, OpenAPI); implementiert Ports aus `application`.
+- `gemeinsam`: `Geld`, `Anschrift`, Fehlerbehandlung, Uhr, Benachrichtigungs-Port, Bestellnummern-Generator.
 - Abhängigkeiten nur in Richtung `api` → `application` → `domain`; `domain` kennt kein Spring außer JPA-Annotationen.
 - Frontend spiegelt die Fachpakete: `src/app/<fachpaket>/`; `src/app/api/` ist generiert.
 

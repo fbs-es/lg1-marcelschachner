@@ -161,3 +161,17 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Technische IDs (Kunde, Adresse, Produkt, Zahlung) sind UUIDs.
 - `bestellnummer` ist eine fachliche, lesbare, eindeutige Nummer (z. B. `B-2026-000123`).
 - E-Mail-Adresse ist eindeutig, Vergleich ohne Groß-/Kleinschreibung, getrimmt.
+
+---
+
+## D-14 Zähler der Bestellnummer
+
+**Problem:** D-13 gibt das Format `B-JJJJ-NNNNNN` vor, aber nicht, ob der Zähler je Jahr neu beginnt.
+
+**Entscheidung:**
+- Der Zähler ist **global** (eine Datenbanksequenz) und beginnt im neuen Jahr **nicht** wieder bei 1.
+- Das Jahr im Präfix ist das Jahr des **Bestelldatums**.
+- Der Zähler ist mindestens sechsstellig mit führenden Nullen; größere Werte werden nicht abgeschnitten.
+- Lücken (z. B. nach abgebrochenem Checkout) sind zulässig; verlangt ist nur Eindeutigkeit.
+
+**Begründung:** Nebenläufig sicher ohne eigene Sperrlogik, auch über mehrere Instanzen.

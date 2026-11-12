@@ -1,0 +1,117 @@
+# Architektur
+
+Stand: Schritt 1 (Backend-Fundament, E00). Wird mit jedem Schritt im selben Commit nachgezogen.
+
+## Überblick
+
+```
+Browser (Angular, ab Schritt 2)
+   │  HTTP/JSON, /api/v1
+   ▼
+Spring Boot 3.5 (Java 21, Gradle)  ──SMTP──▶  Mailpit (lokal) / Mailserver
+   │  JPA/Hibernate, JDBC
+   ▼
+PostgreSQL 16 (Schema per Flyway)
+```
+
+- Build: Gradle 9.9.1 über `./gradlew`, Kotlin DSL ([ADR 0001](adr/0001-gradle-als-build-werkzeug.md)).
+- `./gradlew build` = kompilieren, alle Tests (Unit + Testcontainers), Spotless-Formatprüfung.
+- CI: `.github/workflows/ci.yml` führt `./gradlew build` auf `ubuntu-latest` aus (Docker für Testcontainers vorhanden).
+
+## Pakete
+
+Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und `infrastruktur` implementieren Ports aus `application`.
+
+| Paket | Inhalt |
+|---|---|
+| `de.bestellsystem` | `BestellsystemApplication` (inkl. `@ConfigurationPropertiesScan`) |
+| `gemeinsam.domain` | `Geld` (Cent `long`, EUR, `@Embeddable` Record), `Anschrift` (`@Embeddable` Record, ISO-3166-Alpha-2), fachliche Ausnahmen `NichtGefundenException` (404), `KonfliktException` (409), `FachlicheAblehnungException` (422) |
+| `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung`, `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
+| `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
+| `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
+| `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`) |
+
+## Querschnitt
+
+### Geld (D-11)
+
+- Ganze Cent als `long`, Währung fest `EUR`; nie Gleitkomma.
+- `addiere`, `subtrahiere`, `multipliziere(menge)`, `prozentsatz(BigDecimal)` mit `RoundingMode.HALF_UP` (kaufmännisch).
+- Überlauf wirft `ArithmeticException` (`Math.*Exact`).
+- Darf negativ sein (Zwischenergebnisse); Nichtnegativität (I-7) prüfen die Entities.
+- In Entities mit `@AttributeOverride` auf eine sprechende Spalte (`..._cent`) abbilden.
+
+### Fehler (RFC 9457)
+
+| Auslöser | Status | `title` |
+|---|---|---|
+| Bean Validation (`@Valid`) | 400 | Ungültige Eingabe, plus `fehler: [{feld, meldung}]` |
+| `IllegalArgumentException` (verletzte Wertobjekt-Regel) | 400 | Ungültige Eingabe |
+| unlesbares JSON, unbekannter Pfad, falsche Methode | 400/404/405 | Spring-Standard als ProblemDetail |
+| `NichtGefundenException` | 404 | Nicht gefunden |
+| `KonfliktException` | 409 | Konflikt |
+| `ObjectOptimisticLockingFailureException` | 409 | Versionskonflikt |
+| `FachlicheAblehnungException` | 422 | Fachlich abgelehnt |
+| alles andere | 500 | Interner Fehler (ohne interne Details, geloggt) |
+
+### Zeit
+
+- Einzige Zeitquelle ist die `Clock`-Bean (`Europe/Berlin`, `bestellsystem.zeitzone`).
+- Tests legen Zeit per `FesteUhrKonfiguration` (`@Primary Clock.fixed`) oder direkt mit `Clock.fixed` fest.
+
+### Bestellnummer (D-13, D-14)
+
+- Format `B-<Jahr des Bestelldatums>-<Zähler, mind. 6-stellig>`, z. B. `B-2026-000123`.
+- Zähler global über PostgreSQL-Sequenz, nebenläufig eindeutig, Lücken zulässig.
+
+### Benachrichtigung (D-03)
+
+- Port `Benachrichtigungsversand.sende(Benachrichtigung)`; Adapter verschickt Text-E-Mail per SMTP.
+- Lokal landet jede Mail in Mailpit (http://localhost:8025).
+
+### Konfiguration
+
+| Schlüssel | Standard | Bedeutung |
+|---|---|---|
+| `bestellsystem.zeitzone` | `Europe/Berlin` | Zeitzone der Uhr |
+| `bestellsystem.zahlungsziel` | `14d` | Bestelldatum bis Fälligkeit (D-03) |
+| `bestellsystem.mahnintervall` | `7d` | Mindestabstand zweier Mahnungen (D-03) |
+| `bestellsystem.mail.absender` | `shop@bestellsystem.local` | Absender der E-Mails |
+
+- Zugangsdaten nur über Umgebungsvariablen (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_ABSENDER`).
+- Lokal: `.env` im Repo-Wurzelverzeichnis (Vorlage `.env.example`), gelesen von Docker Compose und vom Backend (`spring.config.import`).
+- `spring.jpa.open-in-view=false`, `ddl-auto=validate`.
+
+## Datenbank
+
+### Tabellen und Sequenzen
+
+| Objekt | Zweck |
+|---|---|
+| Sequenz `bestellnummer_seq` | Zähler der Bestellnummer |
+
+Noch keine Tabellen (Fachentities ab Schritt 2).
+
+### Migrationen
+
+| Version | Datei | Inhalt |
+|---|---|---|
+| V1 | `V1__bestellnummer_sequenz.sql` | Sequenz `bestellnummer_seq` |
+
+## Lokale Infrastruktur
+
+`docker-compose.yml`:
+
+| Dienst | Image | Ports |
+|---|---|---|
+| `postgres` | `postgres:16-alpine` | 5432 |
+| `mailpit` | `axllent/mailpit:v1.33.1` | 1025 (SMTP), 8025 (Web) |
+
+## Tests
+
+| Art | Werkzeug | Beispiele |
+|---|---|---|
+| Domain-Unit | JUnit 5, AssertJ | `GeldTest`, `AnschriftTest`, `BestellnummernGeneratorTest`, `BenachrichtigungTest` |
+| Adapter-Unit | Mockito an der Grenze (`JavaMailSender`) | `MailBenachrichtigungsversandTest` |
+| Web | `@WebMvcTest`, MockMvc | `ZentraleFehlerbehandlungTest` (über Test-Controller `FehlerAusloesenderController`) |
+| Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |

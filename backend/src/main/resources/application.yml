@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: bestellsystem
+  config:
+    # Lokale Zugangsdaten aus der .env im Repo-Wurzelverzeichnis (bootRun läuft in backend/)
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bestellsystem}
+    username: ${DB_USER:bestellsystem}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+bestellsystem:
+  zeitzone: Europe/Berlin
+  zahlungsziel: 14d
+  mahnintervall: 7d
+  mail:
+    absender: ${MAIL_ABSENDER:shop@bestellsystem.local}

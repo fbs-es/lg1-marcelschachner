@@ -35,11 +35,11 @@ Noch keine Fachentities außer diesen Bausteinen. Kein Frontend.
 ```
 
 **Fertig wenn:**
-- `./mvnw verify` grün, inklusive eines Testcontainers-Tests
+- `./gradlew build` grün, inklusive eines Testcontainers-Tests
 - `Geld`-Tests: Addition, Multiplikation, Rundung, keine Gleitkommafehler
 - Swagger UI erreichbar
 - `docs/ARCHITEKTUR.md` angelegt
-- CI-Workflow führt `./mvnw verify` aus
+- CI-Workflow führt `./gradlew build` aus
 
 ---
 
@@ -125,7 +125,7 @@ Fehleranzeige, Bestellbestätigung, Bestellhistorie (US-04.2, Kriterien vorher m
 
 ```
 /goal Alle Akzeptanzkriterien aus stories/US-05.1-zahlungsstatus-pruefen.md sind als Tests
-umgesetzt und grün, dazu Endpunkte für Zahlungsstatus-Änderung und Erstattung, ./mvnw verify grün,
+umgesetzt und grün, dazu Endpunkte für Zahlungsstatus-Änderung und Erstattung, ./gradlew build grün,
 docs/ARCHITEKTUR.md aktualisiert, Schritt 5 in docs/fahrplan.md abgehakt.
 ```
 

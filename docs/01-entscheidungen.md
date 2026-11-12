@@ -318,3 +318,20 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Frontend: Abschnitt „Versand“ in der Bestellansicht; dort legt der Mitarbeiter ohne Login Pakete an und setzt den Status.
 
 **Nicht im Umfang (Schritt 8):** Pakete in der Bestellhistorie, Paket ändern oder löschen, Statushistorie, Benachrichtigung des Kunden.
+
+---
+
+## D-23 Produkt und Gutschein pflegen
+
+**Problem:** E02 und E08 nennen „Titel und Listenpreis ändern“ und „Gutschein anlegen“, die Stories US-02.2 und US-08.2 waren aber nur Kandidaten. Offen waren erlaubte Zeichen im Gutscheincode, der Umgang mit einem Ablaufdatum in der Vergangenheit und Statuscodes.
+
+**Entscheidung:**
+- Produkt ändern: `PUT /api/v1/produkte/{id}` ersetzt Titel und Listenpreis mit denselben Regeln wie beim Anlegen (D-15). Der Lagerbestand bleibt beim eigenen Endpunkt `PUT …/lagerbestand`. Bestehende Bestellungen behalten ihren Einzelpreis (D-10); die Merkliste zeigt den neuen Preis. Gleichzeitige Änderungen: 409 Versionskonflikt.
+- Gutschein anlegen: `POST /api/v1/gutscheine` (201 + `Location`), Liste `GET /api/v1/gutscheine` nach Code sortiert, je Gutschein `istGueltig` (heute laut Uhr ≤ Ablaufdatum, D-04).
+- Neue Codes bestehen aus 1–50 Buchstaben, Ziffern und `-`; gespeichert getrimmt und großgeschrieben (D-17). Sonst 400. Beim Einlösen bleibt die Suche unverändert: ein Code mit anderen Zeichen ist dort einfach unbekannt (422, US-08.1 AK6).
+- Prozent: größer 0, höchstens 100, höchstens zwei Nachkommastellen; Festbetrag größer 0 Cent. Der Rabattwert muss zur Rabattart passen (genau einer von `prozent` und `festbetrag`). Verstöße: 400.
+- Code bereits vergeben, auch in anderer Schreibweise oder gleichzeitig angelegt: **409**.
+- Ablaufdatum vor heute (laut Uhr): **422**. Heute ist erlaubt.
+- Frontend: Seite `/produkte/:id` mit den Formularen „Stammdaten“ und „Lagerbestand“, erreichbar über „Bearbeiten“ in der Produktliste; Menüpunkt „Gutscheine“ mit Liste und Formular „Gutschein anlegen“.
+
+**Nicht im Umfang (Schritt 11):** Gutschein ändern oder löschen, Produkt löschen, Bestandsbuchungen mit Historie (US-02.3).

@@ -200,3 +200,34 @@ Erstelle die Abschlussdokumentation nach Schritt 9 in docs/fahrplan.md.
 - `docs/adr/` vollständig, Entscheidungen D-xx verlinkt
 - `docs/benutzerhandbuch.md` mit den wichtigsten Abläufen
 - OpenAPI-Spezifikation exportiert unter `docs/api/openapi.yaml`
+
+---
+
+## [ ] 10 Remote und CI
+
+**Werkzeug:** von Hand (Repo legt der Nutzer an)
+**Eingaben:** `.github/workflows/ci.yml`
+
+```
+Remote origin auf das private GitHub-Repo setzen, main pushen, ersten CI-Lauf prüfen.
+```
+
+**Fertig wenn:**
+- `main` liegt auf GitHub (privat)
+- CI-Lauf auf `main` grün (Jobs `backend` und `frontend`)
+
+---
+
+## [ ] 11 Pflege Produkt und Gutschein (E02, E08)
+
+**Werkzeug:** normaler Auftrag (Kriterien mit dem Nutzer abgestimmt, D-23)
+**Eingaben:** `stories/US-02.2-*.md`, `stories/US-08.2-*.md`, D-04, D-15, D-17, D-23
+
+```
+Setze Schritt 11 aus docs/fahrplan.md um: US-02.2 und US-08.2, Backend und Frontend.
+```
+
+**Fertig wenn:**
+- Alle Akzeptanzkriterien US-02.2 und US-08.2 als Tests grün
+- Produkt im Browser bearbeiten, Gutschein im Browser anlegen und im Checkout einlösen
+- Benutzerhandbuch ohne SQL-Umweg für Gutscheine

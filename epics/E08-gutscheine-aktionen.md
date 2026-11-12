@@ -24,4 +24,4 @@ Aktionscodes gewähren einen prozentualen oder festen Rabatt auf eine Bestellung
 | ID | Titel | Status |
 |---|---|---|
 | [US-08.1](../stories/US-08.1-gutschein-einloesen.md) | Gutschein bei der Bestellung einlösen | ausformuliert |
-| US-08.2 | Gutschein anlegen | Kandidat |
+| [US-08.2](../stories/US-08.2-gutschein-anlegen.md) | Gutschein anlegen | ausformuliert |

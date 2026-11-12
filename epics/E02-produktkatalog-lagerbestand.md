@@ -24,5 +24,5 @@ Produkte mit Titel, Listenpreis und Lagerbestand verwalten und jederzeit prüfen
 | ID | Titel | Status |
 |---|---|---|
 | [US-02.1](../stories/US-02.1-verfuegbarkeit-pruefen.md) | Verfügbarkeit eines Produkts prüfen | ausformuliert |
-| US-02.2 | Produkt anlegen und Listenpreis pflegen | Kandidat |
+| [US-02.2](../stories/US-02.2-produkt-pflegen.md) | Produkt pflegen (Titel, Listenpreis, Bestand) | ausformuliert |
 | US-02.3 | Lagerbestand buchen | Kandidat |

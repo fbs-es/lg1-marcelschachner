@@ -31,5 +31,8 @@ bestellsystem:
   zeitzone: Europe/Berlin
   zahlungsziel: 14d
   mahnintervall: 7d
+  mahnlauf:
+    # täglich 06:00 in bestellsystem.zeitzone; "-" schaltet den Lauf ab (D-20)
+    cron: "0 0 6 * * *"
   mail:
     absender: ${MAIL_ABSENDER:shop@bestellsystem.local}

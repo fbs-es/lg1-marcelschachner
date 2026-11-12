@@ -25,4 +25,4 @@ Für ein Kundenkonto wird automatisch geprüft, ob Bestellungen überfällig und
 | ID | Titel | Status |
 |---|---|---|
 | [US-06.1](../stories/US-06.1-automatische-mahnpruefung.md) | Automatische Mahnprüfung für ein Kundenkonto | ausformuliert |
-| US-06.2 | Täglicher Mahnlauf über alle Kunden | Kandidat |
+| [US-06.2](../stories/US-06.2-taeglicher-mahnlauf.md) | Täglicher Mahnlauf über alle Kunden | ausformuliert |

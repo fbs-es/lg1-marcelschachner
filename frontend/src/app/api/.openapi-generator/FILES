@@ -7,6 +7,7 @@ api/adressbuch.service.ts
 api/api.ts
 api/bestellungen.service.ts
 api/kunden.service.ts
+api/mahnwesen.service.ts
 api/produkte.service.ts
 api/zahlungen.service.ts
 configuration.ts
@@ -25,6 +26,9 @@ model/geld.ts
 model/kunde-uebersicht.ts
 model/kunde.ts
 model/lagerbestand.ts
+model/mahnlauf.ts
+model/mahnposition.ts
+model/mahnpruefung.ts
 model/models.ts
 model/positionswunsch.ts
 model/problem-detail.ts

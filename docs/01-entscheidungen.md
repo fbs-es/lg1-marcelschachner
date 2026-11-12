@@ -266,3 +266,19 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - Frontend: Bestellansicht zeigt Bezahlstatus, bezahlte Summe und offenen Betrag; die Historie zeigt je Bestellung „bezahlt“ oder den offenen Betrag. Bedienelemente für Statuswechsel und Erstattung gibt es noch nicht.
 
 **Nicht im Umfang (Schritt 5):** Zahlungsanbieter-Anbindung, Endpunkt für Teilzahlungen, Bedienung im Frontend.
+
+## D-20 Mahnprüfung im Detail und täglicher Mahnlauf
+
+**Problem:** D-03 legt fest, dass eine Mahnung je Bestellung höchstens einmal pro Intervall entsteht und die E-Mail „jede überfällige Bestellung“ auflistet. Offen war, was in der E-Mail steht, wenn nur ein Teil der überfälligen Bestellungen wieder gemahnt werden darf. Ebenfalls offen waren Auslöser und Fehlerverhalten des täglichen Laufs (US-06.2).
+
+**Entscheidung:**
+- Die E-Mail listet nur die Bestellungen, die **in dieser Prüfung gemahnt** werden: Sie sind überfällig, und ihre letzte Mahnung liegt mindestens ein Mahnintervall zurück (`stichtag ≥ letzteMahnung + mahnintervall`) oder fehlt. Die Intervalle der Bestellungen sind voneinander unabhängig. Präzisiert D-03.
+- Eine Mahnung friert Datum (Stichtag) und gemahnten Betrag (offener Betrag am Stichtag) ein.
+- Das Mahnintervall muss mindestens einen Tag betragen. Damit versendet eine Wiederholung am selben Tag nichts (idempotent).
+- Der Versand läuft innerhalb der Transaktion der Prüfung. Scheitert er, wird nichts protokolliert (US-06.1 AK7), und die manuelle Prüfung antwortet mit **503**. Scheitert erst der Commit nach erfolgreichem Versand, kann die nächste Prüfung erneut mahnen: Die Zustellung gilt mindestens einmal.
+- Gleichzeitige Prüfungen desselben Kunden laufen nacheinander (Zeilensperre auf dem Kunden). Die zweite sieht die Mahnungen der ersten.
+- **Täglicher Mahnlauf:** zeitgesteuert über `bestellsystem.mahnlauf.cron`, Standard `0 0 6 * * *` in `bestellsystem.zeitzone`, mit `-` abschaltbar. Stichtag ist das heutige Datum laut Uhr. Geprüft werden alle Kunden mit mindestens einer Bestellung, deren Fälligkeit vor dem Stichtag liegt.
+- Jeder Kunde wird in einer eigenen Transaktion geprüft. Ein Fehler bei einem Kunden wird geloggt und gezählt, der Lauf geht weiter. Das Ergebnis meldet die Anzahl gemahnter und fehlgeschlagener Kunden.
+- Manuelle Auslösung, Stichtag immer heute: `POST /api/v1/kunden/{kundenId}/mahnpruefung` (ein Kunde) und `POST /api/v1/mahnlaeufe` (alle Kunden). Ohne Login sind beide offen wie die übrige API im MVP.
+
+**Nicht im Umfang (Schritt 6):** Anzeige der Mahnungen im Frontend, Nachholen ausgefallener Läufe, Sperre gegen parallele Läufe auf mehreren Instanzen.

@@ -59,6 +59,11 @@ public class KundeService {
         return repository.findeMitAdressen(kundenId).orElseThrow(() -> nichtGefunden(kundenId));
     }
 
+    /** Lädt und sperrt den Kunden bis zum Ende der Transaktion (D-20); 404, wenn unbekannt. */
+    public Kunde sperreZumMahnen(UUID kundenId) {
+        return repository.sperreZumMahnen(kundenId).orElseThrow(() -> nichtGefunden(kundenId));
+    }
+
     /** Wirft 404, wenn der Kunde nicht existiert, ohne ihn zu laden. */
     public void pruefeVorhanden(UUID kundenId) {
         if (!repository.existsById(kundenId)) {

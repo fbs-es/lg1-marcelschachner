@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 5 (Zahlungen E05: Bezahlstatus US-05.1, Statuswechsel und Erstattung D-19). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 6 (Mahnwesen E06: Mahnprüfung US-06.1, täglicher Mahnlauf US-06.2, D-20). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -28,26 +28,29 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 |---|---|
 | `de.bestellsystem` | `BestellsystemApplication` (inkl. `@ConfigurationPropertiesScan`) |
 | `gemeinsam.domain` | `Geld` (Cent `long`, EUR, `@Embeddable` Record), `Anschrift` (`@Embeddable` Record, ISO-3166-Alpha-2, Längen nach D-16), fachliche Ausnahmen `NichtGefundenException` (404), `KonfliktException` (409), `FachlicheAblehnungException` (422) |
-| `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung`, `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
+| `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung` (Fehler des Ports: `BenachrichtigungNichtVersendetException`), `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
 | `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
-| `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
+| `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`, übersetzt `MailException`), `ZeitplanKonfiguration` (`@EnableScheduling`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
 | `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`), `GeldDto` (`{cent, waehrung}`, nur `EUR`), `AnschriftDto` (Schema `Anschrift`, genutzt von Kunde und Bestellung) |
 | `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `setzeLagerbestand`, `entnehme(menge)` (409 bei zu wenig Bestand); prüft D-15 und I-7 |
 | `katalog.persistence` | `ProduktRepository` (Spring Data JPA), `sperreZumEntnehmen` (`PESSIMISTIC_WRITE`, sortiert nach `id`, ADR 0003) |
 | `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID), `sperreZumEntnehmen` (nur innerhalb einer Transaktion, 404 für unbekannte Produkte) |
 | `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
-| `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`, `lieferanschrift(id)` (Snapshot, 422 ohne Lieferkennzeichen); setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
-| `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`) |
-| `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, `pruefeVorhanden` (404 ohne Laden), Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
+| `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`, `lieferanschrift(id)` (Snapshot, 422 ohne Lieferkennzeichen), `fuehreMahnpruefungDurch(stichtag, bestellungen, mahnintervall)` (US-06.1, D-20: mahnt fällige Bestellungen, liefert `Optional<Mahnbenachrichtigung>`); setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
+| `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`), `sperreZumMahnen` (`PESSIMISTIC_WRITE`, D-20) |
+| `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, `pruefeVorhanden` (404 ohne Laden), `sperreZumMahnen` (404), Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
 | `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
 | `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
 | `gutschein.persistence` | `GutscheinRepository.findByCode` |
 | `gutschein.application` | `GutscheinService.zumEinloesen(code)` (422 bei unbekanntem Code) |
 | `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabriken `ausstehend` für erste Zahlung und für Teilzahlung/Erstattung mit Betrag > 0): `aendereStatus` (nur aus `AUSSTEHEND`, 422; Zeitpunkt nur bei `ERFOLGREICH`, D-19), `istErfolgreich`, `istAusstehend`, `istErstattung`; Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
 | `zahlung.api` | `ZahlungController` (Statuswechsel, Erstattung, Buchung abrufen; nutzt `BestellungService`, da `Zahlung` Teil des Bestellungs-Aggregats ist), DTOs `ZahlungDto`, `StatusAenderungDto`, `ErstattungBuchenDto` |
-| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung). `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
-| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18), `findeZahlungenDesKunden` (Zahlungen der Historie), `findeMitZahlungen` (Kunde und Nummer, für Buchungen) |
-| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (drei Abfragen, US-04.2, D-19), `zahlung`, `aendereZahlungsstatus` (Zeitpunkt aus `Clock`), `bucheErstattung`; Buchungen sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` (D-19); `Positionswunsch` |
+| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`; Bezahlstatus (US-05.1, D-05) `berechneBezahlteSumme`, `berechneOffenenBetrag`, `istVollstaendigBezahlt`, `berechneErstattbarenBetrag` (D-19); Buchungen `bucheZahlung`, `bucheErstattung` (422 über erstattbar), `aendereZahlungsstatus`, `zahlung(id)` (404 bei fremder Buchung); Mahnwesen (D-03, D-20) `istUeberfaellig(stichtag)`, `istMahnungFaellig(stichtag, intervall)`, `mahne(stichtag, intervall)`, `letzteMahnung`, Mahnungen `cascade ALL`. `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
+| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen), `findeHistorie` (`JOIN FETCH` Positionen, Datum und Nummer absteigend, D-18), `findeZahlungenDesKunden` (Zahlungen der Historie), `findeMitZahlungen` (Kunde und Nummer, für Buchungen), `findeFaelligeMitPositionen` / `findeZahlungenFaelliger` / `findeMahnungenFaelliger` (fällig vor Stichtag, drei Abfragen), `findeKundenMitFaelligenBestellungen` |
+| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen), `historie` (drei Abfragen, US-04.2, D-19), `zahlung`, `aendereZahlungsstatus` (Zeitpunkt aus `Clock`), `bucheErstattung`, `faelligeZumMahnen` (drei Abfragen), `kundenMitFaelligenBestellungen`; Buchungen sperren die Bestellung mit `OPTIMISTIC_FORCE_INCREMENT` (D-19); `Positionswunsch` |
+| `mahnwesen.domain` | `Mahnung` (Entity, UUID, Teil der Bestellung; eingefroren `erstelltAm`, `gemahnterBetrag` > 0), `Mahnbenachrichtigung` (Empfänger, Stichtag, Positionen, `summe`), `Mahnposition` |
+| `mahnwesen.application` | `MahnService.pruefe(kundenId, stichtag)` (`@Transactional`: Kunde sperren, Bestellungen laden, `Kunde.fuehreMahnpruefungDurch`, Versand vor dem Commit), `Mahnlauf` (`@Scheduled`, `fuehreDurch(stichtag)`: je Kunde eigene Transaktion, Fehler gezählt), `Mahnlaufergebnis`, `Mahnschreiben` (Text der E-Mail) |
+| `mahnwesen.api` | `MahnwesenController`, DTOs `MahnpruefungDto`, `MahnpositionDto`, `MahnlaufDto` |
 | `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto`, `BestellungUebersichtDto` |
 
 ## REST-API
@@ -74,6 +77,8 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}` | eine Buchung; 404 bei fremder Bestellung oder Buchung |
 | PUT | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/zahlungen/{zahlungId}/status` | `{transaktionsstatus}`: 200, 400, 404, 409 Versionskonflikt, 422 (nicht mehr `AUSSTEHEND` oder Ziel `AUSSTEHEND`, D-19) |
 | POST | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}/erstattungen` | `{zahlungsart, betrag}`: 201 + `Location` (Buchung), 400 (Betrag 0, Pflichtfelder), 404, 409, 422 über erstattbar (D-19) |
+| POST | `/api/v1/kunden/{kundenId}/mahnpruefung` | Mahnprüfung, Stichtag heute: 200 `{stichtag, istGemahnt, mahnpositionen[{bestellnummer, faelligAm, offenerBetrag}]}`, 404, 409, 503 Versand gescheitert (D-20) |
+| POST | `/api/v1/mahnlaeufe` | Mahnlauf über alle Kunden, Stichtag heute: 200 `{stichtag, gemahnteKunden, fehlgeschlageneKunden}` (US-06.2) |
 
 ## Datenfluss (Beispiel Produkt anlegen)
 
@@ -126,6 +131,24 @@ POST …/erstattungen ─ ZahlungController (@Valid ErstattungBuchenDto)
 ```
 
 Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abruf aus den Buchungen berechnet (D-01, D-05).
+
+## Datenfluss (Mahnprüfung und Mahnlauf, D-20)
+
+```
+@Scheduled(bestellsystem.mahnlauf.cron) oder POST /mahnlaeufe
+  → Mahnlauf.fuehreDurch(heute aus Clock)
+      BestellungService.kundenMitFaelligenBestellungen(stichtag)   DISTINCT kunde_id, faellig_am < stichtag
+      je Kunde: MahnService.pruefe (eigene Transaktion), Fehler loggen und zählen
+  ← Mahnlaufergebnis {stichtag, gemahnteKunden, fehlgeschlageneKunden}
+
+POST /kunden/{id}/mahnpruefung oder Mahnlauf
+  → MahnService.pruefe (@Transactional)
+      KundeService.sperreZumMahnen → SELECT … FOR UPDATE              404; Prüfungen je Kunde nacheinander
+      BestellungService.faelligeZumMahnen → 3 Abfragen (Positionen, Zahlungen, Mahnungen)
+      Kunde.fuehreMahnpruefungDurch: je Bestellung istMahnungFaellig → mahne (Mahnung mit offenem Betrag)
+      Mahnschreiben → Benachrichtigungsversand.sende                 Fehler: Rollback, 503
+  ← beim Commit INSERT mahnung, UPDATE bestellung.version
+```
 
 ## Querschnitt
 
@@ -186,6 +209,9 @@ Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abr
 
 - Port `Benachrichtigungsversand.sende(Benachrichtigung)`; Adapter verschickt Text-E-Mail per SMTP.
 - Lokal landet jede Mail in Mailpit (http://localhost:8025).
+- Fehler des Versands meldet der Port als `BenachrichtigungNichtVersendetException` (Antwort 503).
+- Mahn-E-Mail: Betreff „Zahlungserinnerung“, je gemahnter Bestellung Nummer, Fälligkeit und offener Betrag, dazu die Summe. Der Versand läuft vor dem Commit (mindestens einmal, D-20).
+- Tests ersetzen den Port durch `BenachrichtigungsAttrappe` (merkt Nachrichten, lässt einzelne Empfänger scheitern).
 
 ### Konfiguration
 
@@ -194,6 +220,7 @@ Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abr
 | `bestellsystem.zeitzone` | `Europe/Berlin` | Zeitzone der Uhr |
 | `bestellsystem.zahlungsziel` | `14d` | Bestelldatum bis Fälligkeit (D-03) |
 | `bestellsystem.mahnintervall` | `7d` | Mindestabstand zweier Mahnungen (D-03) |
+| `bestellsystem.mahnlauf.cron` | `0 0 6 * * *` | Zeitplan des Mahnlaufs in `bestellsystem.zeitzone`; `-` schaltet ab (Tests: `src/test/resources/config/application.yml`) |
 | `bestellsystem.mail.absender` | `shop@bestellsystem.local` | Absender der E-Mails |
 
 - Zugangsdaten nur über Umgebungsvariablen (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_ABSENDER`).
@@ -211,9 +238,10 @@ Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abr
 | Tabelle `kunde` | `id` UUID, `version`, `vorname`, `nachname` (≤ 100), `email` (≤ 254, normalisiert, UNIQUE `kunde_email_eindeutig`); Index auf `(nachname, vorname)` |
 | Tabelle `adresse` | `id` UUID, `kunde_id` (FK, `ON DELETE CASCADE`, Index), `reihenfolge` (`@OrderColumn`, nullable, da von Hibernate nachgetragen), `strasse`, `stadt`, `postleitzahl`, `land`, `ist_lieferadresse`, `ist_rechnungsadresse`; CHECK mindestens ein Kennzeichen (I-2) |
 | Tabelle `gutschein` | `id` UUID, `code` (≤ 50, normalisiert, UNIQUE `gutschein_code_eindeutig`), `rabatt_art`, `prozent` NUMERIC(5,2) oder `festbetrag_cent`, `ablaufdatum`; CHECK passend zur Rabattart (D-04) |
-| Tabelle `bestellung` | `bestellnummer` PK, `version`, `kunde_id` (FK, Index), `bestelldatum`, `faellig_am`, `liefer_strasse`/`_stadt`/`_postleitzahl`/`_land` (Snapshot, D-08), `gutschein_id` (FK, nullable), `rabatt_betrag_cent` (≥ 0); kein gespeicherter Gesamtwert (D-01) |
+| Tabelle `bestellung` | `bestellnummer` PK, `version`, `kunde_id` (FK, Index), `bestelldatum`, `faellig_am`, `liefer_strasse`/`_stadt`/`_postleitzahl`/`_land` (Snapshot, D-08), `gutschein_id` (FK, nullable), `rabatt_betrag_cent` (≥ 0); Index auf `faellig_am` (Mahnlauf); kein gespeicherter Gesamtwert (D-01) |
 | Tabelle `bestellposition` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`), `zeilennummer` (≥ 1), `produkt_id` (FK, Index), `menge` (≥ 1), `einzelpreis_cent` (≥ 0); UNIQUE je Bestellung auf Zeilennummer und Produkt (I-6) |
 | Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, gesetzt bei `ERFOLGREICH`, D-17, D-19) |
+| Tabelle `mahnung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `erstellt_am`, `gemahnter_betrag_cent` (> 0) (D-03, D-20) |
 
 ### Migrationen
 
@@ -223,6 +251,7 @@ Bezahlte Summe, offener Betrag und `istVollstaendigBezahlt` werden bei jedem Abr
 | V2 | `V2__produkt.sql` | Tabelle `produkt` mit CHECK-Constraints |
 | V3 | `V3__kunde.sql` | Tabellen `kunde` und `adresse` |
 | V4 | `V4__gutschein_bestellung_zahlung.sql` | Tabellen `gutschein`, `bestellung`, `bestellposition`, `zahlung` |
+| V5 | `V5__mahnung.sql` | Tabelle `mahnung`, Index `bestellung_faellig_am_idx` |
 
 ## Lokale Infrastruktur
 

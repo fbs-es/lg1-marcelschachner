@@ -7,6 +7,7 @@ import de.bestellsystem.gemeinsam.domain.KonfliktException;
 import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
 import de.bestellsystem.gutschein.domain.Gutschein;
 import de.bestellsystem.katalog.domain.Produkt;
+import de.bestellsystem.mahnwesen.domain.Mahnung;
 import de.bestellsystem.zahlung.domain.Buchungsart;
 import de.bestellsystem.zahlung.domain.Transaktionsstatus;
 import de.bestellsystem.zahlung.domain.Zahlung;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +86,11 @@ public class Bestellung {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "bestellnummer", nullable = false)
     private List<Zahlung> zahlungen = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "bestellnummer", nullable = false)
+    @OrderBy("erstelltAm")
+    private List<Mahnung> mahnungen = new ArrayList<>();
 
     protected Bestellung() {}
 
@@ -206,6 +213,35 @@ public class Bestellung {
                 .reduce(Geld.NULL, Geld::addiere);
     }
 
+    /** Rückstand: {@code offenerBetrag > 0 ∧ stichtag > faelligAm} (D-03). */
+    public boolean istUeberfaellig(LocalDate stichtag) {
+        return berechneOffenenBetrag().compareTo(Geld.NULL) > 0 && stichtag.isAfter(faelligAm);
+    }
+
+    /** Überfällig und die letzte Mahnung liegt mindestens ein Mahnintervall zurück (D-20). */
+    public boolean istMahnungFaellig(LocalDate stichtag, Period mahnintervall) {
+        return istUeberfaellig(stichtag)
+                && letzteMahnung()
+                        .map(letzte ->
+                                !stichtag.isBefore(letzte.getErstelltAm().plus(mahnintervall)))
+                        .orElse(true);
+    }
+
+    /** Protokolliert eine Mahnung über den offenen Betrag am Stichtag (D-03, D-20). */
+    public Mahnung mahne(LocalDate stichtag, Period mahnintervall) {
+        if (!istMahnungFaellig(stichtag, mahnintervall)) {
+            throw new IllegalStateException(
+                    "Bestellung %s ist am %s nicht zu mahnen".formatted(bestellnummer, stichtag));
+        }
+        Mahnung mahnung = new Mahnung(stichtag, berechneOffenenBetrag());
+        mahnungen.add(mahnung);
+        return mahnung;
+    }
+
+    public Optional<Mahnung> letzteMahnung() {
+        return mahnungen.stream().max(Comparator.comparing(Mahnung::getErstelltAm));
+    }
+
     /** Weitere Zahlung, z. B. Teilzahlung (E05); entsteht AUSSTEHEND. */
     public Zahlung bucheZahlung(Zahlungsart zahlungsart, Geld betrag) {
         Zahlung zahlung = Zahlung.ausstehend(zahlungsart, Buchungsart.ZAHLUNG, betrag);
@@ -279,6 +315,10 @@ public class Bestellung {
 
     public List<Zahlung> getZahlungen() {
         return Collections.unmodifiableList(zahlungen);
+    }
+
+    public List<Mahnung> getMahnungen() {
+        return Collections.unmodifiableList(mahnungen);
     }
 
     // Die Bestellnummer wird vor dem Anlegen vergeben und ändert sich nie.

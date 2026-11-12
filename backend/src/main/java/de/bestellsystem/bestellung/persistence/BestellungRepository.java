@@ -1,6 +1,7 @@
 package de.bestellsystem.bestellung.persistence;
 
 import de.bestellsystem.bestellung.domain.Bestellung;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,4 +52,38 @@ public interface BestellungRepository extends JpaRepository<Bestellung, String> 
             """)
     Optional<Bestellung> findeMitZahlungen(
             @Param("kundeId") UUID kundeId, @Param("bestellnummer") String bestellnummer);
+
+    // Drei Abfragen statt einer (MultipleBagFetchException), alle in denselben Persistenzkontext.
+    @Query(
+            """
+            select b from Bestellung b
+              join fetch b.positionen
+            where b.kundeId = :kundeId and b.faelligAm < :stichtag
+            """)
+    List<Bestellung> findeFaelligeMitPositionen(
+            @Param("kundeId") UUID kundeId, @Param("stichtag") LocalDate stichtag);
+
+    @Query(
+            """
+            select b from Bestellung b
+              join fetch b.zahlungen
+            where b.kundeId = :kundeId and b.faelligAm < :stichtag
+            """)
+    List<Bestellung> findeZahlungenFaelliger(
+            @Param("kundeId") UUID kundeId, @Param("stichtag") LocalDate stichtag);
+
+    @Query(
+            """
+            select b from Bestellung b
+              left join fetch b.mahnungen
+            where b.kundeId = :kundeId and b.faelligAm < :stichtag
+            """)
+    List<Bestellung> findeMahnungenFaelliger(
+            @Param("kundeId") UUID kundeId, @Param("stichtag") LocalDate stichtag);
+
+    /** Kandidaten des Mahnlaufs: Kunden mit mindestens einer Bestellung fällig vor dem Stichtag. */
+    @Query(
+            "select distinct b.kundeId from Bestellung b where b.faelligAm < :stichtag"
+                    + " order by b.kundeId")
+    List<UUID> findeKundenMitFaelligenBestellungen(@Param("stichtag") LocalDate stichtag);
 }

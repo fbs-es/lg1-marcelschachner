@@ -1,8 +1,12 @@
 package de.bestellsystem.kunde.domain;
 
+import de.bestellsystem.bestellung.domain.Bestellung;
 import de.bestellsystem.gemeinsam.domain.Anschrift;
 import de.bestellsystem.gemeinsam.domain.FachlicheAblehnungException;
 import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
+import de.bestellsystem.mahnwesen.domain.Mahnbenachrichtigung;
+import de.bestellsystem.mahnwesen.domain.Mahnposition;
+import de.bestellsystem.mahnwesen.domain.Mahnung;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -14,10 +18,14 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Kundenkonto mit Adressbuch; Aggregatwurzel, die I-1 und I-2 durchsetzt (D-06, D-16). */
@@ -115,6 +123,45 @@ public class Kunde {
                     "Die Adresse " + adressId + " ist keine Lieferadresse.");
         }
         return adresse.getAnschrift();
+    }
+
+    /**
+     * Mahnt jede Bestellung, deren Mahnung am Stichtag fällig ist, und liefert eine Nachricht mit
+     * allen gemahnten Bestellungen; leer ohne Rückstand (US-06.1, D-03, D-20).
+     *
+     * @param bestellungen Bestellungen dieses Kunden, mit Positionen, Zahlungen und Mahnungen
+     */
+    public Optional<Mahnbenachrichtigung> fuehreMahnpruefungDurch(
+            LocalDate stichtag, List<Bestellung> bestellungen, Period mahnintervall) {
+        if (!stichtag.plus(mahnintervall).isAfter(stichtag)) {
+            throw new IllegalArgumentException(
+                    "Das Mahnintervall muss mindestens einen Tag betragen");
+        }
+        bestellungen.stream()
+                .filter(bestellung -> !bestellung.getKundeId().equals(id))
+                .findFirst()
+                .ifPresent(fremde -> {
+                    throw new IllegalArgumentException(
+                            "Bestellung %s gehört nicht zum Kunden %s"
+                                    .formatted(fremde.getBestellnummer(), id));
+                });
+        List<Mahnposition> positionen =
+                bestellungen.stream()
+                        .filter(bestellung -> bestellung.istMahnungFaellig(stichtag, mahnintervall))
+                        .sorted(
+                                Comparator.comparing(Bestellung::getFaelligAm)
+                                        .thenComparing(Bestellung::getBestellnummer))
+                        .map(bestellung -> {
+                            Mahnung mahnung = bestellung.mahne(stichtag, mahnintervall);
+                            return new Mahnposition(
+                                    bestellung.getBestellnummer(),
+                                    bestellung.getFaelligAm(),
+                                    mahnung.getGemahnterBetrag());
+                        })
+                        .toList();
+        return positionen.isEmpty()
+                ? Optional.empty()
+                : Optional.of(new Mahnbenachrichtigung(email.wert(), stichtag, positionen));
     }
 
     private boolean istEinzigeLieferadresse(Adresse adresse) {

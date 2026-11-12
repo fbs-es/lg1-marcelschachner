@@ -123,6 +123,24 @@ public class BestellungService {
         return bestellungen;
     }
 
+    /**
+     * Bestellungen des Kunden, deren Fälligkeit vor dem Stichtag liegt, mit Positionen, Zahlungen
+     * und Mahnungen in drei Abfragen (E06).
+     */
+    public List<Bestellung> faelligeZumMahnen(UUID kundenId, LocalDate stichtag) {
+        List<Bestellung> bestellungen = repository.findeFaelligeMitPositionen(kundenId, stichtag);
+        if (!bestellungen.isEmpty()) {
+            repository.findeZahlungenFaelliger(kundenId, stichtag);
+            repository.findeMahnungenFaelliger(kundenId, stichtag);
+        }
+        return bestellungen;
+    }
+
+    /** Kunden mit mindestens einer Bestellung, deren Fälligkeit vor dem Stichtag liegt (D-20). */
+    public List<UUID> kundenMitFaelligenBestellungen(LocalDate stichtag) {
+        return repository.findeKundenMitFaelligenBestellungen(stichtag);
+    }
+
     /** Eine Buchung der Bestellung des Kunden; 404 bei fremder Bestellung oder Buchung. */
     public Zahlung zahlung(UUID kundenId, String bestellnummer, UUID zahlungId) {
         return repository

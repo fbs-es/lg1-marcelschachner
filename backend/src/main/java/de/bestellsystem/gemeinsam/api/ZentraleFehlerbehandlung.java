@@ -1,5 +1,6 @@
 package de.bestellsystem.gemeinsam.api;
 
+import de.bestellsystem.gemeinsam.application.BenachrichtigungNichtVersendetException;
 import de.bestellsystem.gemeinsam.domain.FachlicheAblehnungException;
 import de.bestellsystem.gemeinsam.domain.KonfliktException;
 import de.bestellsystem.gemeinsam.domain.NichtGefundenException;
@@ -47,6 +48,16 @@ public class ZentraleFehlerbehandlung extends ResponseEntityExceptionHandler {
     @ExceptionHandler(FachlicheAblehnungException.class)
     ProblemDetail fachlicheAblehnung(FachlicheAblehnungException fehler) {
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Fachlich abgelehnt", fehler.getMessage());
+    }
+
+    @ExceptionHandler(BenachrichtigungNichtVersendetException.class)
+    ProblemDetail nichtVersendet(BenachrichtigungNichtVersendetException fehler) {
+        LOG.warn("Benachrichtigung nicht versendet", fehler);
+        return problem(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Benachrichtigung nicht versendet",
+                "Die Benachrichtigung konnte nicht versendet werden; es wurde nichts protokolliert."
+                        + " Bitte später erneut versuchen.");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

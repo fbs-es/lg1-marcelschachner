@@ -1,0 +1,4 @@
+# Überschreibt src/main/resources/application.yml in Tests: kein zeitgesteuerter Mahnlauf
+bestellsystem:
+  mahnlauf:
+    cron: "-"

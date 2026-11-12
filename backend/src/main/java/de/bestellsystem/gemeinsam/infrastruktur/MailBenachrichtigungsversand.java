@@ -1,7 +1,9 @@
 package de.bestellsystem.gemeinsam.infrastruktur;
 
 import de.bestellsystem.gemeinsam.application.Benachrichtigung;
+import de.bestellsystem.gemeinsam.application.BenachrichtigungNichtVersendetException;
 import de.bestellsystem.gemeinsam.application.Benachrichtigungsversand;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
@@ -25,6 +27,11 @@ class MailBenachrichtigungsversand implements Benachrichtigungsversand {
         nachricht.setTo(benachrichtigung.empfaenger());
         nachricht.setSubject(benachrichtigung.betreff());
         nachricht.setText(benachrichtigung.text());
-        mailSender.send(nachricht);
+        try {
+            mailSender.send(nachricht);
+        } catch (MailException fehler) {
+            throw new BenachrichtigungNichtVersendetException(
+                    "E-Mail an " + benachrichtigung.empfaenger() + " nicht versendet", fehler);
+        }
     }
 }

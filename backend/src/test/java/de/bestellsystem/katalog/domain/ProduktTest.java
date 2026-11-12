@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import de.bestellsystem.gemeinsam.domain.Geld;
+import de.bestellsystem.gemeinsam.domain.KonfliktException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -121,5 +122,33 @@ class ProduktTest {
     @Test
     void neuesProduktHatId() {
         assertThat(produktMitBestand(1).getId()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("US-04.1 AK2: Entnehmen senkt den Lagerbestand")
+    void entnehmen() {
+        Produkt produkt = produktMitBestand(10);
+
+        produkt.entnehme(2);
+
+        assertThat(produkt.getLagerbestand()).isEqualTo(8);
+    }
+
+    @Test
+    @DisplayName("D-09: Entnehmen über den Bestand hinaus wird abgelehnt, Bestand bleibt")
+    void entnehmenUeberBestand() {
+        Produkt produkt = produktMitBestand(1);
+
+        assertThatThrownBy(() -> produkt.entnehme(2))
+                .isInstanceOf(KonfliktException.class)
+                .hasMessageContaining("Stehlampe");
+        assertThat(produkt.getLagerbestand()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("D-10: Entnehmen verlangt eine Menge von mindestens 1")
+    void entnehmenMengeMindestensEins() {
+        assertThatThrownBy(() -> produktMitBestand(5).entnehme(0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

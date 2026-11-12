@@ -1,6 +1,7 @@
 package de.bestellsystem.katalog.domain;
 
 import de.bestellsystem.gemeinsam.domain.Geld;
+import de.bestellsystem.gemeinsam.domain.KonfliktException;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -49,6 +50,16 @@ public class Produkt {
             throw new IllegalArgumentException("menge muss mindestens 1 sein, war: " + menge);
         }
         return lagerbestand >= menge;
+    }
+
+    /** Senkt den Bestand beim Checkout; nie unter 0 (D-09). */
+    public void entnehme(int menge) {
+        if (!istVerfuegbar(menge)) {
+            throw new KonfliktException(
+                    "Nicht genug Bestand für %s: verfügbar %d, bestellt %d"
+                            .formatted(titel, lagerbestand, menge));
+        }
+        lagerbestand -= menge;
     }
 
     public void setzeLagerbestand(int lagerbestand) {
@@ -101,7 +112,8 @@ public class Produkt {
     // Die UUID wird im Konstruktor vergeben und ändert sich nie, daher stabil als Identität.
     @Override
     public boolean equals(Object anderes) {
-        return this == anderes || (anderes instanceof Produkt produkt && id.equals(produkt.id));
+        return this == anderes
+                || (anderes instanceof Produkt produkt && id.equals(produkt.getId()));
     }
 
     @Override

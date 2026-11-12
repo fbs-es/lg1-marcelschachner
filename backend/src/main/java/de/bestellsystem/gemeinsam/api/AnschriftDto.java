@@ -1,4 +1,4 @@
-package de.bestellsystem.kunde.api;
+package de.bestellsystem.gemeinsam.api;
 
 import de.bestellsystem.gemeinsam.domain.Anschrift;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,12 +17,12 @@ public record AnschriftDto(
                 String postleitzahl,
         @Schema(description = "ISO-3166-Alpha-2-Code", example = "DE") @NotBlank String land) {
 
-    static AnschriftDto von(Anschrift anschrift) {
+    public static AnschriftDto von(Anschrift anschrift) {
         return new AnschriftDto(
                 anschrift.strasse(), anschrift.stadt(), anschrift.postleitzahl(), anschrift.land());
     }
 
-    Anschrift alsAnschrift() {
+    public Anschrift alsAnschrift() {
         return new Anschrift(strasse, stadt, postleitzahl, land);
     }
 }

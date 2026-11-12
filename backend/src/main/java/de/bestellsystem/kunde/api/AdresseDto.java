@@ -1,5 +1,6 @@
 package de.bestellsystem.kunde.api;
 
+import de.bestellsystem.gemeinsam.api.AnschriftDto;
 import de.bestellsystem.kunde.domain.Adresse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.UUID;

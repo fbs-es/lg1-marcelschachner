@@ -31,7 +31,7 @@ class BestellsystemApplicationIT {
     @DisplayName("E00: Ein Test kann Datum und Uhrzeit festlegen")
     void uhrIstImTestFestgelegt() {
         assertThat(uhr.instant()).isEqualTo(FesteUhrKonfiguration.JETZT);
-        assertThat(LocalDate.now(uhr)).isEqualTo(LocalDate.of(2026, 3, 15));
+        assertThat(LocalDate.now(uhr)).isEqualTo(LocalDate.of(2026, 11, 12));
     }
 
     @Test

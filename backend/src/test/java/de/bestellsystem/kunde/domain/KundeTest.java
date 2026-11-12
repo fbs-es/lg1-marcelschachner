@@ -253,4 +253,40 @@ class KundeTest {
                     .isInstanceOf(UnsupportedOperationException.class);
         }
     }
+
+    @Nested
+    class Lieferanschrift {
+
+        @Test
+        @DisplayName("US-04.1 AK5: Lieferanschrift ist eine Kopie der gewählten Lieferadresse")
+        void kopie() {
+            Kunde kunde = anna();
+            UUID adressId = kunde.getAdressen().getFirst().getId();
+
+            Anschrift snapshot = kunde.lieferanschrift(adressId);
+            kunde.aendereAdresse(adressId, WIEN, true, false);
+
+            assertThat(snapshot).isEqualTo(BERLIN);
+        }
+
+        @Test
+        @DisplayName("US-04.1 AK8: fremde Adresse wird nicht gefunden")
+        void fremdeAdresse() {
+            UUID fremde = anna().getAdressen().getFirst().getId();
+
+            assertThatThrownBy(() -> anna().lieferanschrift(fremde))
+                    .isInstanceOf(NichtGefundenException.class);
+        }
+
+        @Test
+        @DisplayName("US-04.1 AK8: Adresse ohne Lieferkennzeichen wird fachlich abgelehnt")
+        void keineLieferadresse() {
+            Kunde kunde = anna();
+            UUID rechnungsadresse = kunde.fuegeAdresseHinzu(WIEN, false, true).getId();
+
+            assertThatThrownBy(() -> kunde.lieferanschrift(rechnungsadresse))
+                    .isInstanceOf(FachlicheAblehnungException.class)
+                    .hasMessageContaining("Lieferadresse");
+        }
+    }
 }

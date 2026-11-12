@@ -1,5 +1,6 @@
 package de.bestellsystem.kunde.api;
 
+import de.bestellsystem.gemeinsam.api.AnschriftDto;
 import de.bestellsystem.kunde.domain.Kunde;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;

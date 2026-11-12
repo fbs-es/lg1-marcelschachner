@@ -210,3 +210,24 @@ istVollstaendigBezahlt = bezahlteSumme ≥ gesamtwert
 - `Kunde` ist Aggregatwurzel mit `@Version`; jede Änderung am Adressbuch erhöht die Version. Gleichzeitige Änderungen enden für den Verlierer mit 409 (Versionskonflikt), I-1 bleibt erhalten.
 
 **Nicht im Umfang (Schritt 3):** Name oder E-Mail ändern, Konto löschen, Standardadresse.
+
+---
+
+## D-17 Checkout: Ablehnungen, Gutscheincode, erste Zahlung
+
+**Problem:** US-04.1 und US-08.1 legen fest, *dass* abgelehnt wird, aber nicht mit welchem Statuscode. Offen sind außerdem die Schreibweise des Gutscheincodes, der Zahlungszeitpunkt einer ausstehenden Zahlung und der Fall Gesamtwert 0 €.
+
+**Entscheidung:**
+- Statuscodes beim Checkout:
+  - 400: keine Positionen (US-04.1 AK7), `menge < 1`, fehlende Pflichtfelder.
+  - 404: unbekannter Kunde, unbekanntes Produkt, Adresse existiert nicht oder gehört einem anderen Kunden (wie D-16).
+  - 409: Bestand reicht nicht (US-04.1 AK3). Der Hinweis nennt **alle** Produkte, deren Bestand nicht reicht.
+  - 422: Adresse ohne Lieferkennzeichen (US-04.1 AK8), Gutschein abgelaufen oder unbekannt (US-08.1 AK4, AK6).
+- Jede Ablehnung lässt keinen Bestand verändert und legt keine Bestellung an.
+- Gutscheincode wird getrimmt und **großgeschrieben** gespeichert und gesucht (D-04).
+- Prozentrabatt hat höchstens zwei Nachkommastellen.
+- Die API nimmt höchstens **einen** Gutscheincode je Checkout an. "Zweiter Code ersetzt den ersten" (US-08.1 AK7) ist Verhalten der Eingabemaske.
+- Die erste Zahlung (D-02) hat **keinen** `zahlungszeitpunkt`; er wird erst beim Statuswechsel gesetzt (E05).
+- Auch bei Gesamtwert 0 € wird die erste Zahlung über 0,00 € mit Status `AUSSTEHEND` angelegt (I-5).
+
+**Nicht im Umfang (Schritt 4a):** Gutschein anlegen (US-08.2), Bestellhistorie (US-04.2). Tests legen Gutscheine direkt an.

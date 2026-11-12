@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Primary;
 @TestConfiguration(proxyBeanMethods = false)
 public class FesteUhrKonfiguration {
 
-    public static final Instant JETZT = Instant.parse("2026-03-15T09:30:00Z");
+    public static final Instant JETZT = Instant.parse("2026-11-12T09:30:00Z");
     public static final ZoneId ZEITZONE = ZoneId.of("Europe/Berlin");
 
     @Bean

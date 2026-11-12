@@ -1,6 +1,6 @@
 # Architektur
 
-Stand: Schritt 3 (Kundenkonto und Adressbuch E01). Wird mit jedem Schritt im selben Commit nachgezogen.
+Stand: Schritt 4a (Checkout im Backend, E04 + E08). Wird mit jedem Schritt im selben Commit nachgezogen.
 
 ## Überblick
 
@@ -31,15 +31,24 @@ Schichten je Fachpaket: `api` → `application` → `domain`; `persistence` und 
 | `gemeinsam.application` | Port `Benachrichtigungsversand` + `Benachrichtigung`, `BestellnummernGenerator` + Port `BestellnummernZaehler`, `FachlicheEinstellungen` (`bestellsystem.*`) |
 | `gemeinsam.persistence` | `SequenzBestellnummernZaehler` (`nextval('bestellnummer_seq')` über `JdbcClient`) |
 | `gemeinsam.infrastruktur` | `UhrKonfiguration` (`Clock`-Bean in konfigurierter Zeitzone), `MailBenachrichtigungsversand` (`JavaMailSender`), `MailEinstellungen` (`bestellsystem.mail.*`), `OpenApiKonfiguration` |
-| `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`), `GeldDto` (`{cent, waehrung}`, nur `EUR`) |
-| `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `setzeLagerbestand`; prüft D-15 und I-7 |
-| `katalog.persistence` | `ProduktRepository` (Spring Data JPA) |
-| `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID) |
+| `gemeinsam.api` | `ZentraleFehlerbehandlung` (`@RestControllerAdvice`, `ResponseEntityExceptionHandler`), `GeldDto` (`{cent, waehrung}`, nur `EUR`), `AnschriftDto` (Schema `Anschrift`, genutzt von Kunde und Bestellung) |
+| `katalog.domain` | `Produkt` (Entity, UUID im Konstruktor, `@Version`): `istVerfuegbar()`, `istVerfuegbar(menge)`, `setzeLagerbestand`, `entnehme(menge)` (409 bei zu wenig Bestand); prüft D-15 und I-7 |
+| `katalog.persistence` | `ProduktRepository` (Spring Data JPA), `sperreZumEntnehmen` (`PESSIMISTIC_WRITE`, sortiert nach `id`, ADR 0003) |
+| `katalog.application` | `ProduktService` (Transaktionen, 404 bei unbekannter ID), `sperreZumEntnehmen` (nur innerhalb einer Transaktion, 404 für unbekannte Produkte) |
 | `katalog.api` | `ProduktController`, DTOs `ProduktAnlegenDto`, `ProduktDto`, `LagerbestandDto`, `VerfuegbarkeitDto` |
-| `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`; setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
+| `kunde.domain` | `Kunde` (Aggregatwurzel, UUID, `@Version`): Registrierung im Konstruktor, `fuegeAdresseHinzu`, `aendereAdresse`, `entferneAdresse`, `adresse(id)`, `lieferanschrift(id)` (Snapshot, 422 ohne Lieferkennzeichen); setzt I-1 (422) und I-2 (400) durch. `Adresse` (Entity, `@Embedded Anschrift`, `istLieferadresse`, `istRechnungsadresse`; nur über `Kunde` änderbar). `Email` (`@Embeddable` Record: getrimmt, kleingeschrieben, Format, ≤ 254) |
 | `kunde.persistence` | `KundeRepository`: `existsByEmail`, Liste nach Nachname/Vorname, `findeMitAdressen` (`JOIN FETCH`) |
 | `kunde.application` | `KundeService`: `registriere` (409 bei vergebener E-Mail, auch über Unique-Constraint), `alle`, `finde`, Adressbuch-Operationen mit `OPTIMISTIC_FORCE_INCREMENT` auf den Kunden (D-16) |
-| `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AnschriftDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
+| `kunde.api` | `KundeController`, `AdressbuchController`, DTOs `RegistrierungDto`, `AdresseEingabeDto`, `AdresseDto`, `KundeDto`, `KundeUebersichtDto` |
+| `gutschein.domain` | `Gutschein` (Entity, UUID; Fabriken `prozent`, `festbetrag`): `normalisiere(code)` (getrimmt, groß), `istGueltigAm(datum)` (inklusive), `berechneRabatt(warenwert)` (HALF_UP, höchstens Warenwert); `RabattArt` |
+| `gutschein.persistence` | `GutscheinRepository.findByCode` |
+| `gutschein.application` | `GutscheinService.zumEinloesen(code)` (422 bei unbekanntem Code) |
+| `zahlung.domain` | `Zahlung` (Entity, UUID, Teil der Bestellung; Fabrik `ausstehend`), Enums `Zahlungsart`, `Buchungsart`, `Transaktionsstatus` |
+| `zahlung.api` | `ZahlungDto` |
+| `bestellung.domain` | `Bestellung` (Aggregatwurzel, `bestellnummer` als ID, `@Version`, `kundeId`, `@Embedded lieferanschrift`, Gutschein 0..1 LAZY, eingefrorener `rabattBetrag`, Positionen und Zahlungen `cascade ALL`): Fabrik `gibAuf`, `berechneWarenwert`, `berechneGesamtwert`. `Bestellposition` (eingefrorener `einzelpreis`, Produkt LAZY, `berechneZwischenbetrag`). `Bestellwunsch` (Produkt + Menge vor dem Zusammenfassen) |
+| `bestellung.persistence` | `BestellungRepository`: `findeMitPositionen` (`JOIN FETCH` Positionen, Produkt, Gutschein), `findeZahlungen` (`JOIN FETCH` Zahlungen) |
+| `bestellung.application` | `BestellungService`: `gibAuf` (eine Transaktion), `finde` (zwei Abfragen); `Positionswunsch` |
+| `bestellung.api` | `BestellungController`, DTOs `BestellungAufgebenDto`, `PositionswunschDto`, `BestellungDto`, `BestellpositionDto` |
 
 ## REST-API
 
@@ -59,6 +68,8 @@ OpenAPI unter `/v3/api-docs`, Swagger UI unter `/swagger-ui.html`. Exportiert na
 | GET | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | eine Adresse, 404 auch bei fremder Adresse |
 | PUT | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | vollständig ersetzen: 200, 400, 404, 409, 422 (I-1) |
 | DELETE | `/api/v1/kunden/{kundenId}/adressen/{adressId}` | 204, 404, 409, 422 letzte Lieferadresse (I-1) |
+| POST | `/api/v1/kunden/{kundenId}/bestellungen` | Checkout: 201 + `Location`, 400 (keine Positionen, Menge < 1), 404 (Kunde, Produkt, fremde Adresse), 409 Bestand, 422 (keine Lieferadresse, Gutschein abgelaufen/unbekannt), D-17 |
+| GET | `/api/v1/kunden/{kundenId}/bestellungen/{bestellnummer}` | Bestellung mit Positionen, Rabatt, Gesamtwert, Zahlungen; 404 auch bei fremder Bestellung |
 
 ## Datenfluss (Beispiel Produkt anlegen)
 
@@ -68,6 +79,23 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
   → new Produkt(...) prüft Invarianten → ProduktRepository.save → INSERT produkt
   ← 201 ProduktDto ← Router zurück zur Liste ← GET /api/v1/produkte
 ```
+
+## Datenfluss (Checkout, US-04.1)
+
+```
+POST /kunden/{id}/bestellungen ─ BestellungController (@Valid BestellungAufgebenDto)
+  → BestellungService.gibAuf (@Transactional, eine Transaktion)
+      KundeService.finde → Kunde.lieferanschrift(adressId)        404 fremd, 422 keine Lieferadresse
+      ProduktService.sperreZumEntnehmen → SELECT … FOR UPDATE     404 unbekannt, Sperre bis Commit
+      GutscheinService.zumEinloesen (optional)                    422 unbekannt
+      BestellnummernGenerator.erzeuge(heute aus Clock)
+      Bestellung.gibAuf: zusammenfassen → Gutschein gültig? (422) → alle Bestände prüfen (409)
+                         → entnehmen, Preise einfrieren → Rabatt einfrieren → Zahlung AUSSTEHEND
+      BestellungRepository.save → INSERT bestellung, bestellposition, zahlung; UPDATE produkt
+  ← 201 BestellungDto
+```
+
+Jede Ablehnung wirft vor dem Commit; die Transaktion rollt zurück, kein Bestand ändert sich.
 
 ## Querschnitt
 
@@ -98,6 +126,12 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 - Zwei gleichzeitige Änderungen, die zusammen I-1 verletzen würden (z. B. beide Lieferadressen löschen), scheitern für die zweite mit 409 Versionskonflikt.
 - Gleichzeitige Registrierung derselben E-Mail: der Unique-Constraint `kunde_email_eindeutig` greift, `saveAndFlush` übersetzt die Verletzung in 409.
 
+### Nebenläufigkeit im Checkout (D-09, ADR 0003)
+
+- Produkte werden mit `PESSIMISTIC_WRITE` in fester Reihenfolge (`id`) gesperrt; gleichzeitige Checkouts auf dasselbe Produkt laufen nacheinander.
+- Der wartende Checkout sieht danach den aktuellen Bestand: reicht er nicht, 409 mit Produktname; reicht er, gelingen beide.
+- `@Version` auf `Produkt` bleibt für `PUT lagerbestand`; die Version steigt auch beim Checkout.
+
 ### Sprache
 
 - `spring.web.locale=de` mit festem `LocaleResolver`: Bean-Validation-Meldungen sind immer deutsch.
@@ -105,7 +139,8 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 ### Zeit
 
 - Einzige Zeitquelle ist die `Clock`-Bean (`Europe/Berlin`, `bestellsystem.zeitzone`).
-- Tests legen Zeit per `FesteUhrKonfiguration` (`@Primary Clock.fixed`) oder direkt mit `Clock.fixed` fest.
+- Tests legen Zeit per `FesteUhrKonfiguration` (`@Primary Clock.fixed`, 12.11.2026 wie in den Stories) oder direkt mit `Clock.fixed` fest.
+- Integrationstests mit Bestellungen leeren die Fachtabellen vorher und nachher (`Datenbestand.leere`), da sie den Testcontainer mit anderen Klassen teilen.
 
 ### Bestellnummer (D-13, D-14)
 
@@ -140,6 +175,10 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 | Tabelle `produkt` | `id` UUID, `version`, `titel` (≤ 200), `listenpreis_cent` (≥ 0), `lagerbestand` (≥ 0); Index auf `titel` |
 | Tabelle `kunde` | `id` UUID, `version`, `vorname`, `nachname` (≤ 100), `email` (≤ 254, normalisiert, UNIQUE `kunde_email_eindeutig`); Index auf `(nachname, vorname)` |
 | Tabelle `adresse` | `id` UUID, `kunde_id` (FK, `ON DELETE CASCADE`, Index), `reihenfolge` (`@OrderColumn`, nullable, da von Hibernate nachgetragen), `strasse`, `stadt`, `postleitzahl`, `land`, `ist_lieferadresse`, `ist_rechnungsadresse`; CHECK mindestens ein Kennzeichen (I-2) |
+| Tabelle `gutschein` | `id` UUID, `code` (≤ 50, normalisiert, UNIQUE `gutschein_code_eindeutig`), `rabatt_art`, `prozent` NUMERIC(5,2) oder `festbetrag_cent`, `ablaufdatum`; CHECK passend zur Rabattart (D-04) |
+| Tabelle `bestellung` | `bestellnummer` PK, `version`, `kunde_id` (FK, Index), `bestelldatum`, `faellig_am`, `liefer_strasse`/`_stadt`/`_postleitzahl`/`_land` (Snapshot, D-08), `gutschein_id` (FK, nullable), `rabatt_betrag_cent` (≥ 0); kein gespeicherter Gesamtwert (D-01) |
+| Tabelle `bestellposition` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`), `zeilennummer` (≥ 1), `produkt_id` (FK, Index), `menge` (≥ 1), `einzelpreis_cent` (≥ 0); UNIQUE je Bestellung auf Zeilennummer und Produkt (I-6) |
+| Tabelle `zahlung` | `id` UUID, `bestellnummer` (FK, `ON DELETE CASCADE`, Index), `zahlungsart`, `buchungsart`, `transaktionsstatus` (je CHECK auf Enum-Werte), `betrag_cent` (≥ 0), `zahlungszeitpunkt` (nullable, D-17) |
 
 ### Migrationen
 
@@ -148,6 +187,7 @@ ProduktAnlegen (Angular) ─ ProdukteService (generiert) ─ POST /api/v1/produk
 | V1 | `V1__bestellnummer_sequenz.sql` | Sequenz `bestellnummer_seq` |
 | V2 | `V2__produkt.sql` | Tabelle `produkt` mit CHECK-Constraints |
 | V3 | `V3__kunde.sql` | Tabellen `kunde` und `adresse` |
+| V4 | `V4__gutschein_bestellung_zahlung.sql` | Tabellen `gutschein`, `bestellung`, `bestellposition`, `zahlung` |
 
 ## Lokale Infrastruktur
 
@@ -188,6 +228,9 @@ Angular 21: Standalone Components, Signals, Reactive Forms, zoneless; Tests mit 
 | Domain-Unit Katalog | JUnit 5, AssertJ | `ProduktTest` (US-02.1 AK1–5, D-15) |
 | Domain-Unit Kunde | JUnit 5, AssertJ | `KundeTest` (US-01.1 bis US-01.3), `EmailTest` (D-13, D-16) |
 | API-Integration Kunde | MockMvc, PostgreSQL | `KundeApiIT` (alle AK US-01.1 bis US-01.3 über HTTP) |
+| Domain-Unit Checkout | JUnit 5, AssertJ | `BestellungTest` (US-04.1 AK1–8, US-08.1 AK1–9), `GutscheinTest` (US-08.1, D-04, D-17) |
+| API-Integration Checkout | MockMvc, PostgreSQL, feste Uhr 12.11.2026 | `BestellungApiIT` (US-04.1, US-08.1, Statuscodes D-17, Rollback; Abfragenzahl beim Abruf über Hibernate-Statistics = 2) |
+| Nebenläufigkeit Checkout | `TransactionTemplate`, Latches, Warten auf `pg_stat_activity` | `BestellungNebenlaeufigkeitIT` (letzte Lampe: genau einer; genug Bestand: beide) |
 | Nebenläufigkeit | zwei Transaktionen per `TransactionTemplate`, Latches | `KundeNebenlaeufigkeitIT` (US-01.3 AK8, gleichzeitige Registrierung) |
 | Integration | `@SpringBootTest`, Testcontainers (`TestcontainersKonfiguration`, `@ServiceConnection`) | `BestellsystemApplicationIT`, `SequenzBestellnummernZaehlerIT` |
 | API-Integration | `@SpringBootTest` + MockMvc gegen echten Service und PostgreSQL | `ProduktApiIT` (US-02.1 AK1–5 über HTTP, Statuscodes, ProblemDetail) |

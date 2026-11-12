@@ -107,6 +107,16 @@ public class Kunde {
                                 "Adresse " + adressId + " existiert nicht im Adressbuch"));
     }
 
+    /** Anschrift der gewählten Lieferadresse als Snapshot für eine Bestellung (D-08). */
+    public Anschrift lieferanschrift(UUID adressId) {
+        Adresse adresse = adresse(adressId);
+        if (!adresse.istLieferadresse()) {
+            throw new FachlicheAblehnungException(
+                    "Die Adresse " + adressId + " ist keine Lieferadresse.");
+        }
+        return adresse.getAnschrift();
+    }
+
     private boolean istEinzigeLieferadresse(Adresse adresse) {
         return adresse.istLieferadresse()
                 && adressen.stream().filter(Adresse::istLieferadresse).count() == 1;

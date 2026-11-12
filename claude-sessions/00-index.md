@@ -1,0 +1,15 @@
+# Claude-Code-Sessions: Bestellsystem
+
+1. [Domänenmodell E-Commerce-Bestellsystem](01-canon-domaenenmodell-e-commerce-bestellsystem.md) (Canon, 1502 Zeilen)
+2. [/naechster-schritt Skill für fahrplan.md](02-bestellsystem-naechster-schritt-skill-fuer-fahrplan-md.md) (bestellsystem, 1484 Zeilen)
+3. [/naechster-schritt aus fahrplan.md](03-bestellsystem-naechster-schritt-aus-fahrplan-md.md) (bestellsystem, 1990 Zeilen)
+4. [Skill /naechster-schritt für fahrplan.md](04-bestellsystem-skill-naechster-schritt-fuer-fahrplan-md.md) (bestellsystem, 1780 Zeilen)
+5. [Slash-Befehl /naechster-schritt für fahrplan.md](05-bestellsystem-slash-befehl-naechster-schritt-fuer-fahr.md) (bestellsystem, 1569 Zeilen)
+6. [6bd7cb3e-0c44-45dd-b190-85f8537f8994](06-bestellsystem-6bd7cb3e-0c44-45dd-b190-85f8537f8994.md) (bestellsystem, 26 Zeilen)
+7. [/naechster-schritt aus fahrplan.md](07-bestellsystem-naechster-schritt-aus-fahrplan-md.md) (bestellsystem, 113 Zeilen)
+8. [Naechster-Schritt-Befehl für fahrplan.md](08-bestellsystem-naechster-schritt-befehl-fuer-fahrplan-m.md) (bestellsystem, 3563 Zeilen)
+9. [Naechster-Schritt für fahrplan.md](09-bestellsystem-naechster-schritt-fuer-fahrplan-md.md) (bestellsystem, 2199 Zeilen)
+10. [Nächster Schritt aus fahrplan.md](10-bestellsystem-naechster-schritt-aus-fahrplan-md.md) (bestellsystem, 1909 Zeilen)
+11. [/naechster-schritt aus fahrplan.md](11-bestellsystem-naechster-schritt-aus-fahrplan-md.md) (bestellsystem, 1655 Zeilen)
+12. [Nächster Schritt aus fahrplan.md](12-bestellsystem-naechster-schritt-aus-fahrplan-md.md) (bestellsystem, 2420 Zeilen)
+13. [/naechster-schritt Befehl für Fahrplan](13-bestellsystem-naechster-schritt-befehl-fuer-fahrplan.md) (bestellsystem, 3346 Zeilen)
